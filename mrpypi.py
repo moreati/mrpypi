@@ -4,9 +4,7 @@ import logging
 import pip
 import pip.req
 import posixpath
-from pprint import pprint
 import urllib2
-import wsgiref.simple_server
 import xml.sax.saxutils as saxutils
 
 import chisel
@@ -16,7 +14,7 @@ import chisel
 # pip utilities
 #
 
-PipPackageVersion = namedtuple('PipPackageVersion', ('versionKey', 'link', 'version'))
+PipPackage = namedtuple('PipPackageVersion', ('versionKey', 'link', 'version'))
 
 def pipPackageVersions(index, package):
     finder = pip.index.PackageFinder([], [index], use_wheel = False,
@@ -27,7 +25,7 @@ def pipPackageVersions(index, package):
     packageExists = False
     for packagePage in finder._get_pages([packageLink], packageReq):
         packageExists = True
-        packageVersions.extend(PipPackageVersion(*pv) for pv in
+        packageVersions.extend(PipPackage(*pv) for pv in
                                finder._package_versions(packagePage.links, packageReq.name.lower()))
     return packageVersions if packageExists else None
 
@@ -36,24 +34,25 @@ def pipPackageVersions(index, package):
 # Package cache
 #
 
-_cacheIndexes = ['https://pypi.python.org/simple/']
+CacheIndex = namedtuple('CacheIndex', ('package', 'datetime', 'index'))
+CachePackage = namedtuple('CachePackage', ('package', 'version', 'filename', 'hash', 'hash_name', 'url'))
 
 def cachePackageVersions(ctx, package):
-    packageVersions = []
+    packageIndex = []
     packageExists = False
-    packageVersionSet = set()
-    for index in _cacheIndexes:
+    packageVersions = set()
+    for index in ctx.indexUrls:
         try:
             indexVersions = pipPackageVersions(index, package)
             if indexVersions is not None:
                 packageExists = True
                 for indexVersion in indexVersions:
-                    if indexVersion.version not in packageVersionSet:
-                        packageVersionSet.add(indexVersion.version)
-                        packageVersions.append(indexVersion)
+                    if indexVersion.version not in packageVersions:
+                        packageVersions.add(indexVersion.version)
+                        packageIndex.append(indexVersion)
         except Exception as e:
             ctx.log.warning('Package versions pip exception for %r: %s', package, e)
-    return packageVersions if packageExists else None
+    return packageIndex if packageExists else None
 
 def cachePackageStream(ctx, package, version, filename):
 
@@ -212,16 +211,18 @@ def pypi_upload(environ, start_response):
 # Pypi application
 #
 
-application = chisel.Application()
-application.logLevel = logging.INFO
-application.addDocRequest()
-application.addRequest(pypi_index)
-application.addRequest(pypi_download)
-application.addRequest(pypi_upload)
+class MrPyPi(chisel.Application):
+    __slots__ = ('mongoUri', 'mongoDatabase', 'indexUrls')
 
+    def __init__(self, mongoUri, mongoDatabase, indexUrls = None):
+        chisel.Application.__init__(self)
+        self.mongoUri = mongoUri
+        self.mongoDatabase = mongoDatabase
+        self.indexUrls = indexUrls if indexUrls is not None else (pip.cmdoptions.index_url.kwargs['default'],)
+        self.logLevel = logging.INFO
 
-######################################################################
-
-if __name__ == '__main__':
-    server = wsgiref.simple_server.make_server('', 8080, application)
-    server.serve_forever()
+    def init(self):
+        self.addDocRequest()
+        self.addRequest(pypi_index)
+        self.addRequest(pypi_download)
+        self.addRequest(pypi_upload)
