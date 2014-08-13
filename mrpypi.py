@@ -16,6 +16,9 @@ import chisel
 
 PipPackage = namedtuple('PipPackageVersion', ('versionKey', 'link', 'version'))
 
+def pipDefaultIndexes():
+    return (pip.cmdoptions.index_url.kwargs['default'],)
+
 def pipPackageVersions(index, package):
     finder = pip.index.PackageFinder([], [index], use_wheel = False,
                                      allow_external = [package], allow_unverified = [package])
@@ -218,7 +221,7 @@ class MrPyPi(chisel.Application):
         chisel.Application.__init__(self)
         self.mongoUri = mongoUri
         self.mongoDatabase = mongoDatabase
-        self.indexUrls = indexUrls if indexUrls is not None else (pip.cmdoptions.index_url.kwargs['default'],)
+        self.indexUrls = indexUrls if indexUrls is not None else pipDefaultIndexes()
         self.logLevel = logging.INFO
 
     def init(self):
