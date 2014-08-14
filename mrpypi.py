@@ -1,5 +1,6 @@
 import cgi
 from collections import namedtuple
+from datetime import datetime, timedelta
 import logging
 import pip
 import pip.req
@@ -8,6 +9,7 @@ import urllib2
 import xml.sax.saxutils as saxutils
 
 import chisel
+from pymongo import MongoClient
 
 
 #
@@ -37,34 +39,64 @@ def pipPackageVersions(index, package):
 # Package cache
 #
 
-CacheIndex = namedtuple('CacheIndex', ('package', 'datetime', 'index'))
-CachePackage = namedtuple('CachePackage', ('package', 'version', 'filename', 'hash', 'hash_name', 'url'))
+CACHE_INDEX_TTL = timedelta(days = 7)
+CACHE_INDEX_COLLECTION = 'Index'
+
+CachePackage = namedtuple('CachePackage', ('package', 'datetime', 'version', 'filename', 'hash', 'hash_name', 'url'))
 
 def cachePackageVersions(ctx, package):
-    packageIndex = []
-    packageExists = False
-    packageVersions = set()
-    for index in ctx.indexUrls:
-        try:
-            indexVersions = pipPackageVersions(index, package)
-            if indexVersions is not None:
-                packageExists = True
-                for indexVersion in indexVersions:
-                    if indexVersion.version not in packageVersions:
-                        packageVersions.add(indexVersion.version)
-                        packageIndex.append(indexVersion)
-        except Exception as e:
-            ctx.log.warning('Package versions pip exception for %r: %s', package, e)
-    return packageIndex if packageExists else None
+
+    now = datetime.now()
+
+    # Read mongo index
+    with MongoClient(ctx.mongoUri) as mclient:
+        mdb = mclient[ctx.mongoDatabase]
+        mix = mdb[CACHE_INDEX_COLLECTION]
+
+        # Get the package index entries
+        index = [CachePackage(x['package'], x['datetime'], x['version'],
+                              x['filename'], x['hash'], x['hash_name'], x['url'])
+                 for x in mix.find({'package': package})]
+        indexExists = len(index) != 0
+
+        # Index out-of-date?
+        if not indexExists or max(x.datetime for x in index) - now > CACHE_INDEX_TTL:
+            ctx.log.info('Updating index for %r', package)
+
+            # Read remote index
+            remoteIndex = []
+            remoteExists = False
+            remoteVersions = set()
+            for index in ctx.indexUrls:
+                try:
+                    pipPackages = pipPackageVersions(index, package)
+                    if pipPackages is not None:
+                        remoteExists = True
+                        for pipPackage in pipPackages:
+                            if pipPackage.version not in remoteVersions:
+                                remoteVersions.add(pipPackage.version)
+                                remoteIndex.append(CachePackage(package, now, pipPackage.version,
+                                                                pipPackage.link.filename, pipPackage.link.hash,
+                                                                pipPackage.link.hash_name, pipPackage.link.url))
+                except Exception as e:
+                    ctx.log.warning('Package versions pip exception for %r: %s', package, e)
+
+            # Remote package exist?
+            if remoteExists:
+
+                #!! Update persistent index...
+                mix.insert(x._asdict() for x in remoteIndex)
+
+    return index if indexExists else None
 
 def cachePackageStream(ctx, package, version, filename):
 
-    packageVersion = next((pv for pv in cachePackageVersions(ctx, package) if pv.version == version), None)
-    if packageVersion is None or packageVersion.link.filename != filename:
+    cachePackage = next((cp for cp in cachePackageVersions(ctx, package) if cp.version == version), None)
+    if cachePackage is None or cachePackage.filename != filename:
         return None
 
     def packageStream():
-        req = urllib2.Request(url = packageVersion.link.url)
+        req = urllib2.Request(url = cachePackage.url)
         fh = urllib2.urlopen(req)
         while True:
             data = fh.read(4096)
@@ -86,18 +118,18 @@ def cachePackageAdd(ctx, package, version, filename, content):
 def pypi_index_response(ctx, req, response):
 
     # Versioned request?
-    packageVersions = cachePackageVersions(ctx, req['package'])
-    if packageVersions is None:
+    cachePackages = cachePackageVersions(ctx, req['package'])
+    if cachePackages is None:
         return ctx.responseText('404 Not Found', 'Not Found')
 
     # Build the link URLs
     linkUrls = ['../../pypi_download/{package}/{version}/{filename}{hash}' \
                 .format(package = req['package'].lower(),
-                        version = pv.version,
-                        filename = pv.link.filename,
-                        hash = ('#{hash_name}={hash}'.format(hash_name = pv.link.hash_name, hash = pv.link.hash)
-                                if pv.link.hash is not None else ''))
-                for pv in packageVersions]
+                        version = cp.version,
+                        filename = cp.filename,
+                        hash = ('#{hash_name}={hash}'.format(hash_name = cp.hash_name, hash = cp.hash)
+                                if cp.hash is not None else ''))
+                for cp in cachePackages]
 
     # Build the link HTML
     linkHtmls = ['<a href={linkUrlHref} rel="internal">{linkUrlText}</a><br/>' \
@@ -217,10 +249,10 @@ def pypi_upload(environ, start_response):
 class MrPyPi(chisel.Application):
     __slots__ = ('mongoUri', 'mongoDatabase', 'indexUrls')
 
-    def __init__(self, mongoUri, mongoDatabase, indexUrls = None):
+    def __init__(self, mongoUri = None, mongoDatabase = None, indexUrls = None):
         chisel.Application.__init__(self)
-        self.mongoUri = mongoUri
-        self.mongoDatabase = mongoDatabase
+        self.mongoUri = mongoUri if mongoUri is not None else 'mongodb://localhost:27017'
+        self.mongoDatabase = mongoDatabase if mongoDatabase is not None else 'MrPyPi'
         self.indexUrls = indexUrls if indexUrls is not None else pipDefaultIndexes()
         self.logLevel = logging.INFO
 
