@@ -2,6 +2,7 @@ import cgi
 from collections import namedtuple
 from datetime import datetime, timedelta
 import logging
+import md5
 import pip
 import pip.req
 import posixpath
@@ -9,6 +10,7 @@ import urllib2
 import xml.sax.saxutils as saxutils
 
 import chisel
+import gridfs # pymongo
 from pymongo import MongoClient
 
 
@@ -40,11 +42,13 @@ def pipPackageVersions(index, package):
 #
 
 CACHE_INDEX_TTL = timedelta(days = 7)
-CACHE_INDEX_COLLECTION = 'Index'
+CACHE_INDEX_COLLECTION = 'index'
+CACHE_FS_COLLECTION = 'fs'
+CACHE_FS_CHUNK_SIZE = 256 * 1024 * 1024
 
 CachePackage = namedtuple('CachePackage', ('package', 'datetime', 'version', 'filename', 'hash', 'hash_name', 'url'))
 
-def cachePackageVersions(ctx, package):
+def cacheIndex(ctx, package):
 
     now = datetime.now()
 
@@ -54,22 +58,22 @@ def cachePackageVersions(ctx, package):
         mix = mdb[CACHE_INDEX_COLLECTION]
 
         # Get the package index entries
-        index = [CachePackage(x['package'], x['datetime'], x['version'],
-                              x['filename'], x['hash'], x['hash_name'], x['url'])
-                 for x in mix.find({'package': package})]
-        indexExists = len(index) != 0
+        cacheIndex = [CachePackage(x['package'], x['datetime'], x['version'],
+                                   x['filename'], x['hash'], x['hash_name'], x['url'])
+                      for x in mix.find({'package': package})]
+        cacheIndexExists = len(cacheIndex) != 0
 
         # Index out-of-date?
-        if not indexExists or max(x.datetime for x in index) - now > CACHE_INDEX_TTL:
+        if not cacheIndexExists or max(cp.datetime for cp in cacheIndex if cp.url is not None) - now > CACHE_INDEX_TTL:
             ctx.log.info('Updating index for %r', package)
 
             # Read remote index
             remoteIndex = []
             remoteExists = False
             remoteVersions = set()
-            for index in ctx.indexUrls:
+            for indexUrl in ctx.indexUrls:
                 try:
-                    pipPackages = pipPackageVersions(index, package)
+                    pipPackages = pipPackageVersions(indexUrl, package)
                     if pipPackages is not None:
                         remoteExists = True
                         for pipPackage in pipPackages:
@@ -85,30 +89,90 @@ def cachePackageVersions(ctx, package):
             if remoteExists:
 
                 #!! Update persistent index...
+                cacheIndex = remoteIndex
+                cacheIndexExists = True
                 mix.insert(x._asdict() for x in remoteIndex)
 
-    return index if indexExists else None
+    return cacheIndex if cacheIndexExists else None
 
 def cachePackageStream(ctx, package, version, filename):
 
-    cachePackage = next((cp for cp in cachePackageVersions(ctx, package) if cp.version == version), None)
+    # Find the cache package
+    cachePackage = next((cp for cp in cacheIndex(ctx, package) if cp.version == version), None)
     if cachePackage is None or cachePackage.filename != filename:
         return None
 
+    # File stream...
     def packageStream():
-        req = urllib2.Request(url = cachePackage.url)
-        fh = urllib2.urlopen(req)
-        while True:
-            data = fh.read(4096)
-            if not data:
-                break
-            yield data
-        fh.close()
+
+        # Open the gridfs
+        with MongoClient(ctx.mongoUri) as mclient:
+            mdb = mclient[ctx.mongoDatabase]
+            mfs = gridfs.GridFS(mdb, collection = CACHE_FS_COLLECTION)
+
+            # Package file not exist?
+            mfsFilename = posixpath.join(cachePackage.package, cachePackage.version)
+            if not mfs.exists(filename = mfsFilename):
+
+                # Download the file
+                assert cachePackage.url, 'Attempt to add cache package without URL!!'
+                ctx.log.info('Downloading package %s, %s from %s', cachePackage.package, cachePackage.version, cachePackage.url)
+                req = urllib2.Request(url = cachePackage.url)
+                reqf = urllib2.urlopen(req)
+                try:
+                    content = reqf.read()
+                finally:
+                    reqf.close()
+
+                # Add the file
+                ctx.log.info('Adding package %s, %s (%d bytes)', cachePackage.package, cachePackage.version, len(content))
+                with mfs.new_file(filename = mfsFilename) as mf:
+                    mf.write(content)
+
+            # Stream the file chunks
+            with mfs.get_last_version(filename = mfsFilename) as mf:
+                while True:
+                    data = mf.read(CACHE_FS_CHUNK_SIZE)
+                    if not data:
+                        break
+                    yield data
 
     return packageStream
 
 def cachePackageAdd(ctx, package, version, filename, content):
-    ctx.log.info('Adding package %r, %r, %r, %r', package, version, filename, len(content))
+
+    # Create the cache package object
+    cachePackage = CachePackage(package, datetime.now(), version, filename,
+                                md5.new(content).hexdigest(), 'md5', None)
+
+    # Open the gridfs
+    with MongoClient(ctx.mongoUri) as mclient:
+        mdb = mclient[ctx.mongoDatabase]
+        mix = mdb[CACHE_INDEX_COLLECTION]
+        mfs = gridfs.GridFS(mdb, collection = CACHE_FS_COLLECTION)
+
+        # Index exist?
+        cachePackageExisting = next((cp for cp in cacheIndex(ctx, package) if cp.version == cachePackage.version), None)
+        if cachePackageExisting is not None:
+            ctx.log.error('Attempt to add package index (%s, %s) that already exists!', cachePackage.package, cachePackage.version)
+            return False
+
+        # File exist?
+        mfsFilename = posixpath.join(cachePackage.package, cachePackage.version)
+        if mfs.exists(filename = mfsFilename):
+            ctx.log.error('Attempt to add package file (%s, %s) that already exists!', cachePackage.package, cachePackage.version)
+            return False
+
+        # Add the index
+        ctx.log.info('Adding package index %s, %s', cachePackage.package, cachePackage.version)
+        mix.insert(cachePackage._asdict())
+
+        # Add the file
+        ctx.log.info('Adding package file %s, %s (%d bytes)', cachePackage.package, cachePackage.version, len(content))
+        with mfs.new_file(filename = mfsFilename) as mf:
+            mf.write(content)
+
+        return True
 
 
 #
@@ -118,7 +182,7 @@ def cachePackageAdd(ctx, package, version, filename, content):
 def pypi_index_response(ctx, req, response):
 
     # Versioned request?
-    cachePackages = cachePackageVersions(ctx, req['package'])
+    cachePackages = cacheIndex(ctx, req['package'])
     if cachePackages is None:
         return ctx.responseText('404 Not Found', 'Not Found')
 
@@ -205,7 +269,7 @@ def _pypi_upload(ctx):
     # Decode the multipart post
     ctype, pdict = cgi.parse_header(ctx.environ.get('CONTENT_TYPE', ''))
     if ctype != 'multipart/form-data':
-        return ctx.responseText('400 Bad Request', 'Bad Request')
+        return ctx.responseText('400 Bad Request', '')
     parts = cgi.parse_multipart(ctx.environ['wsgi.input'], pdict)
 
     # Sanity check
@@ -228,7 +292,8 @@ def _pypi_upload(ctx):
     filename = package + '-' + version + _uploadFiletypeToExt[filetype]
 
     # Add the package to the cache
-    cachePackageAdd(ctx, package, version, filename, content)
+    if not cachePackageAdd(ctx, package, version, filename, content):
+        return ctx.responseText('400 File Exists', '')
 
     return ctx.responseText('200 OK', '')
 
