@@ -1,3 +1,7 @@
+#
+# Copyright (C) 2014 Craig Hobbs
+#
+
 import cgi
 from collections import namedtuple
 from datetime import datetime, timedelta
