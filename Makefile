@@ -40,6 +40,7 @@ clean:
 		$$(find $(PACKAGE_NAME) -name '*.pyc') \
 		build \
 		dist \
+		*.egg \
 		*.egg-info \
 		.coverage \
 		$(COVER)

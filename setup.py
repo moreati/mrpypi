@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name = 'mrpypi',
-    version = '0.1.0',
+    version = '0.1.1',
     author = 'Craig Hobbs',
     author_email = 'craigahobbs@gmail.com',
     description = ('Simple, reliable local pypy cache.'),
@@ -24,5 +24,6 @@ setup(
         'Programming Language :: Python :: 3.4'
     ],
     packages = ['mrpypi'],
-    test_suite='mrpypi.tests'
+    test_suite='mrpypi.tests',
+    install_requires = ['chisel >= 0.7.0'],
 )
