@@ -5,7 +5,6 @@
 from collections import namedtuple
 from datetime import datetime, timedelta
 import md5
-import posixpath
 import urllib2
 
 import gridfs # pymongo
@@ -33,7 +32,25 @@ class MongoIndex(object):
         self.indexTTL = indexTTL if indexTTL is not None else timedelta(days = 7)
 
 
+    @staticmethod
+    def _normalizeName(packageName):
+        return packageName.strip().lower()
+
+    @staticmethod
+    def _normalizeVersion(version):
+        return version.strip()
+
+    @staticmethod
+    def _normalizeFilename(filename):
+        return filename.strip()
+
+    @staticmethod
+    def _localFilename(packageName, version):
+        return packageName + '/' + version
+
+
     def getPackageIndex(self, ctx, packageName):
+        packageName = self._normalizeName(packageName)
 
         # Read mongo index
         with MongoClient(self.mongoUri) as mclient:
@@ -93,6 +110,9 @@ class MongoIndex(object):
 
 
     def getPackageStream(self, ctx, packageName, version, filename):
+        packageName = self._normalizeName(packageName)
+        version = self._normalizeVersion(version)
+        filename = self._normalizeFilename(filename)
 
         # Find the package index entry
         packageEntry = next((pe for pe in self.getPackageIndex(ctx, packageName) if pe.version == version), None)
@@ -108,12 +128,12 @@ class MongoIndex(object):
                 mfs = gridfs.GridFS(mdb, collection = self.fsCollection)
 
                 # Package file not exist?
-                mfsFilename = posixpath.join(packageEntry.name, packageEntry.version)
+                mfsFilename = self._localFilename(packageName, version)
                 if not mfs.exists(filename = mfsFilename):
 
                     # Download the file
                     assert packageEntry.url, 'Attempt to add package index entry without URL!!'
-                    ctx.log.info('Downloading package (%s, %s) from "%s"', packageEntry.name, packageEntry.version, packageEntry.url)
+                    ctx.log.info('Downloading package (%s, %s) from "%s"', packageName, version, packageEntry.url)
                     req = urllib2.Request(url = packageEntry.url)
                     reqf = urllib2.urlopen(req)
                     try:
@@ -122,7 +142,7 @@ class MongoIndex(object):
                         reqf.close()
 
                     # Add the file
-                    ctx.log.info('Adding package (%s, %s) (%d bytes)', packageEntry.name, packageEntry.version, len(content))
+                    ctx.log.info('Adding package (%s, %s) (%d bytes)', packageName, version, len(content))
                     with mfs.new_file(filename = mfsFilename) as mf:
                         mf.write(content)
 
@@ -138,15 +158,16 @@ class MongoIndex(object):
 
 
     def addPackage(self, ctx, packageName, version, filename, content):
+        packageName = self._normalizeName(packageName)
+        version = self._normalizeVersion(version)
+        filename = self._normalizeFilename(filename)
 
-        # Create the package index entry object
-        packageEntry = MongoIndexEntry(name = packageName,
-                                       version = version,
-                                       filename = filename,
-                                       hash = md5.new(content).hexdigest(),
-                                       hash_name = 'md5',
-                                       url = None,
-                                       datetime = datetime.now())
+        # Index exist?
+        packageIndex = self.getPackageIndex(ctx, packageName) or ()
+        packageExisting = next((pe for pe in packageIndex if pe.version == version), None)
+        if packageExisting is not None:
+            ctx.log.error('Attempt to add package index (%s, %s) that already exists!', packageName, version)
+            return False
 
         # Open the gridfs
         with MongoClient(self.mongoUri) as mclient:
@@ -154,25 +175,24 @@ class MongoIndex(object):
             mix = mdb[self.indexCollection]
             mfs = gridfs.GridFS(mdb, collection = self.fsCollection)
 
-            # Index exist?
-            packageIndex = self.getPackageIndex(ctx, packageName) or ()
-            packageExisting = next((pe for pe in packageIndex if pe.version == packageEntry.version), None)
-            if packageExisting is not None:
-                ctx.log.error('Attempt to add package index (%s, %s) that already exists!', packageEntry.name, packageEntry.version)
-                return False
-
             # File exist?
-            mfsFilename = posixpath.join(packageEntry.name, packageEntry.version)
+            mfsFilename = self._localFilename(packageName, version)
             if mfs.exists(filename = mfsFilename):
-                ctx.log.error('Attempt to add package file (%s, %s) that already exists!', packageEntry.name, packageEntry.version)
+                ctx.log.error('Attempt to add package file (%s, %s) that already exists!', packageName, version)
                 return False
 
             # Add the index
-            ctx.log.info('Adding package index (%s, %s)', packageEntry.name, packageEntry.version)
-            mix.insert(packageEntry._asdict())
+            ctx.log.info('Adding package index (%s, %s)', packageName, version)
+            mix.insert(MongoIndexEntry(name = packageName,
+                                       version = version,
+                                       filename = filename,
+                                       hash = md5.new(content).hexdigest(),
+                                       hash_name = 'md5',
+                                       url = None,
+                                       datetime = datetime.now())._asdict())
 
             # Add the file
-            ctx.log.info('Adding package file (%s, %s) (%d bytes)', packageEntry.name, packageEntry.version, len(content))
+            ctx.log.info('Adding package file (%s, %s) (%d bytes)', packageName, version, len(content))
             with mfs.new_file(filename = mfsFilename) as mf:
                 mf.write(content)
 

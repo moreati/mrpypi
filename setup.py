@@ -6,11 +6,10 @@ from setuptools import setup
 
 setup(
     name = 'mrpypi',
-    version = '0.1.1',
+    version = '0.1.2',
     author = 'Craig Hobbs',
     author_email = 'craigahobbs@gmail.com',
-    description = ('Simple, reliable local pypy cache.'),
-    long_description = 'Simple, reliable local pypy cache.',
+    description = 'Simple, reliable local pypy cache.',
     keywords = 'pypi mirror',
     url = 'https://github.com/craigahobbs/mrpypi',
     license = 'MIT',
@@ -21,9 +20,12 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.2',
         'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4'
+        'Programming Language :: Python :: 3.4',
     ],
     packages = ['mrpypi'],
     test_suite='mrpypi.tests',
-    install_requires = ['chisel >= 0.7.0'],
+    install_requires = [
+        'chisel >= 0.7.0',
+        'pymongo >= 2.4',
+    ],
 )

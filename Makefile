@@ -59,7 +59,7 @@ setup:
 		python-pip \
 		python-virtualenv \
 		$(foreach P, $(PYTHON_VERSIONS),$(if $(shell which python$P),,python$P))
-	pip install -U pip virtualenv
+	sudo pip install -U pip virtualenv
 
 # Macro to generate virtualenv rules - env_name, python_version, packages, commands
 define ENV_RULE

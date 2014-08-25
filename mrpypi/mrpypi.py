@@ -4,28 +4,29 @@
 
 import cgi
 import logging
+import urllib
 import xml.sax.saxutils as saxutils
 
 import chisel
 
 
 #
-# Pypi versioned package index page
+# Pypi package index page
 #
 
 def pypi_index_response(ctx, req, response):
 
-    # Versioned request?
+    # Get the package index
     packageIndex = ctx.index.getPackageIndex(ctx, req['package'])
     if packageIndex is None:
         return ctx.responseText('404 Not Found', 'Not Found')
 
     # Build the link URLs
     linkUrls = ['../../pypi_download/{package}/{version}/{filename}{hash}' \
-                .format(package = pe.name,
-                        version = pe.version,
-                        filename = pe.filename,
-                        hash = ('#{hash_name}={hash}'.format(hash_name = pe.hash_name, hash = pe.hash)
+                .format(package = urllib.pathname2url(pe.name),
+                        version = urllib.pathname2url(pe.version),
+                        filename = urllib.pathname2url(pe.filename),
+                        hash = (('#' + urllib.quote(pe.hash_name) + '=' + urllib.quote(pe.hash))
                                 if pe.hash is not None else ''))
                 for pe in packageIndex]
 
@@ -46,7 +47,7 @@ def pypi_index_response(ctx, req, response):
 <h1>Links for {package}</h1>
 {linkHtmls}
 </body>
-</html>'''.format(package = req['package'],
+</html>'''.format(package = cgi.escape(req['package']),
                   linkHtmls = '\n'.join(linkHtmls))
 
     return ctx.responseText('200 OK', response, contentType = 'text/html')
@@ -106,30 +107,39 @@ def _pypi_upload(ctx):
         return ctx.responseText('400 Bad Request', '')
     parts = cgi.parse_multipart(ctx.environ['wsgi.input'], pdict)
 
-    # Sanity check
-    def getPart(key):
-        value = parts.get(key)
-        return value[0] if (value is not None and isinstance(value, list) and len(value) == 1) else None
+    def getPart(key, expectedType = str, minLen = 1, strip = True):
+        values = parts.get(key)
+        if values is None or not isinstance(values, list) or len(values) != 1:
+            return None
+        value = values[0]
+        if not isinstance(value, expectedType):
+            return None
+        if strip:
+            value = value.strip()
+        if minLen is not None and len(value) < minLen:
+            return None
+        return value
+
+    # Handle the action
     action = getPart(':action')
-    filetype = getPart('filetype')
-    package = getPart('name')
-    version = getPart('version')
-    content = getPart('content')
-    if (action != 'file_upload' or
-        filetype not in _uploadFiletypeToExt or
-        not isinstance(package, str) or len(package) == 0 or
-        not isinstance(version, str) or len(version) == 0 or
-        not isinstance(content, bytes) or len(content) == 0):
+    if action == 'file_upload':
+
+        # Get file upload arguments
+        filetype = getPart('filetype')
+        package = getPart('name')
+        version = getPart('version')
+        content = getPart('content', expectedType = bytes, strip = False)
+        if filetype not in _uploadFiletypeToExt or package is None or version is None or content is None:
+            return ctx.responseText('400 Bad Request', 'Bad Request')
+
+        # Add the package to the index
+        filename = package + '-' + version + _uploadFiletypeToExt[filetype]
+        result = ctx.index.addPackage(ctx, package, version, filename, content)
+        return ctx.responseText('200 OK' if result else '400 File Exists', '')
+
+    else: # Unknown action
         return ctx.responseText('400 Bad Request', 'Bad Request')
 
-    # Construct the package filename
-    filename = package + '-' + version + _uploadFiletypeToExt[filetype]
-
-    # Add the package to the index
-    if not ctx.index.addPackage(ctx, package, version, filename, content):
-        return ctx.responseText('400 File Exists', '')
-
-    return ctx.responseText('200 OK', '')
 
 @chisel.request
 def pypi_upload(environ, start_response):
