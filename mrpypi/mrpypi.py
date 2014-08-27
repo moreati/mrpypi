@@ -14,7 +14,13 @@ import chisel
 # Pypi package index page
 #
 
-def pypi_index_response(ctx, req, response):
+@chisel.action(urls = ['/pypi_index/{package}', '/pypi_index/{package}/'], wsgiResponse = True,
+               spec = '''\
+action pypi_index
+    input
+        string package
+''')
+def pypi_index(ctx, req):
 
     # Get the package index
     packageIndex = ctx.index.getPackageIndex(ctx, req['package'])
@@ -52,22 +58,20 @@ def pypi_index_response(ctx, req, response):
 
     return ctx.responseText('200 OK', response, contentType = 'text/html')
 
-@chisel.action(urls = ['/pypi_index/{package}', '/pypi_index/{package}/'],
-               response = pypi_index_response,
-               spec = '''\
-action pypi_index
-    input
-        string package
-''')
-def pypi_index(ctx, req):
-    pass
-
 
 #
 # Pypi package download
 #
 
-def pypi_download_response(ctx, req, response):
+@chisel.action(urls = ['/pypi_download/{package}/{version}/{filename}'], wsgiResponse = True,
+               spec = '''\
+action pypi_download
+    input
+        string package
+        string version
+        string filename
+''')
+def pypi_download(ctx, req):
 
     # Get the package stream generator
     packageStream = ctx.index.getPackageStream(ctx, req['package'], req['version'], req['filename'])
@@ -77,18 +81,6 @@ def pypi_download_response(ctx, req, response):
     # Stream the package
     ctx.start_response('200 OK', [('Content-Type','application/octet-stream')])
     return packageStream()
-
-@chisel.action(urls = ['/pypi_download/{package}/{version}/{filename}'],
-               response = pypi_download_response,
-               spec = '''\
-action pypi_download
-    input
-        string package
-        string version
-        string filename
-''')
-def pypi_download(ctx, req):
-    pass
 
 
 #
