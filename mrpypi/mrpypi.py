@@ -91,7 +91,9 @@ _uploadFiletypeToExt = {
     'sdist': '.tar.gz'
 }
 
-def _pypi_upload(ctx):
+@chisel.request
+def pypi_upload(environ, start_response):
+    ctx = environ[chisel.Application.ENVIRON_APP]
 
     # Decode the multipart post
     ctype, pdict = cgi.parse_header(ctx.environ.get('CONTENT_TYPE', ''))
@@ -131,16 +133,6 @@ def _pypi_upload(ctx):
 
     else: # Unknown action
         return ctx.responseText('400 Bad Request', 'Bad Request')
-
-
-@chisel.request
-def pypi_upload(environ, start_response):
-    ctx = environ[chisel.Application.ENVIRON_APP]
-    try:
-        return _pypi_upload(ctx)
-    except:
-        ctx.log.exception('Exception raised in pypi_upload')
-        return ctx.responseText('500 Internal Server Error', 'Internal Server Error')
 
 
 #
