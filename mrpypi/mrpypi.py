@@ -143,11 +143,15 @@ class MrPyPi(chisel.Application):
     __slots__ = ('index')
 
     def __init__(self, index):
+
+        # Override application defaults
         chisel.Application.__init__(self)
-        self.index = index
         self.logLevel = logging.INFO
 
-    def init(self):
+        # Set the index
+        self.index = index
+
+        # Add application requests
         self.addDocRequest()
         self.addRequest(pypi_index)
         self.addRequest(pypi_download)

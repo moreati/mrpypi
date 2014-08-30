@@ -25,7 +25,7 @@ setup(
     packages = ['mrpypi'],
     test_suite='mrpypi.tests',
     install_requires = [
-        'chisel >= 0.8.1',
+        'chisel >= 0.8.3',
         'pymongo >= 2.6',
     ],
 )
