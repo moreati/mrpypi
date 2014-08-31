@@ -19,11 +19,12 @@ import chisel
 action pypi_index
     input
         string package
+        optional bool forceUpdate
 ''')
 def pypi_index(ctx, req):
 
     # Get the package index
-    packageIndex = ctx.index.getPackageIndex(ctx, req['package'])
+    packageIndex = ctx.index.getPackageIndex(ctx, req['package'], req.get('forceUpdate', False))
     if packageIndex is None:
         return ctx.responseText('404 Not Found', 'Not Found')
 

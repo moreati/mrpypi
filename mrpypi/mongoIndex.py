@@ -8,7 +8,7 @@ import md5
 import urllib2
 
 import gridfs # pymongo
-from pymongo import MongoClient
+import pymongo
 
 from .indexUtil import pipDefaultIndexes, pipPackageVersions
 
@@ -19,15 +19,14 @@ MongoIndexEntry = namedtuple('MongoIndexEntry', ('name', 'version', 'filename', 
 class MongoIndex(object):
     __slots__ = ('mongoUri', 'mongoDatabase', 'indexCollection', 'fsCollection', 'indexUrls', 'indexTTL')
 
+    INDEX_COLLECTION_NAME = 'index'
+    FILES_COLLECTION_NAME = 'fs'
     STREAM_CHUNK_SIZE = 4096
 
-    def __init__(self, mongoUri = None, mongoDatabase = None, indexCollection = None, fsCollection = None,
-                 indexUrls = None, indexTTL = None):
+    def __init__(self, mongoUri = None, mongoDatabase = None, indexUrls = None, indexTTL = None):
 
         self.mongoUri = mongoUri if mongoUri is not None else 'mongodb://localhost:27017'
         self.mongoDatabase = mongoDatabase if mongoDatabase is not None else 'mrpypi'
-        self.indexCollection = indexCollection if indexCollection is not None else 'index'
-        self.fsCollection = fsCollection if fsCollection is not None else 'fs'
         self.indexUrls = indexUrls if indexUrls is not None else pipDefaultIndexes()
         self.indexTTL = indexTTL if indexTTL is not None else timedelta(days = 7)
 
@@ -48,14 +47,21 @@ class MongoIndex(object):
     def _localFilename(packageName, version):
         return packageName + '/' + version
 
+    def _mongoCollection_PackageIndex(self, mongoClient):
+        mcPackageIndex = mongoClient[self.mongoDatabase][self.INDEX_COLLECTION_NAME]
+        mcPackageIndex.ensure_index([('name', pymongo.ASCENDING), ('version', pymongo.ASCENDING)], unique = True)
+        return mcPackageIndex
 
-    def getPackageIndex(self, ctx, packageName):
+    def _mongoGridFS_PackageFiles(self, mongoClient):
+        return gridfs.GridFS(mongoClient[self.mongoDatabase], collection = self.FILES_COLLECTION_NAME)
+
+
+    def getPackageIndex(self, ctx, packageName, forceUpdate = False):
         packageName = self._normalizeName(packageName)
 
         # Read mongo index
-        with MongoClient(self.mongoUri) as mclient:
-            mdb = mclient[self.mongoDatabase]
-            mix = mdb[self.indexCollection]
+        with pymongo.MongoClient(self.mongoUri) as mongoClient:
+            mcPackageIndex = self._mongoCollection_PackageIndex(mongoClient)
 
             # Get the package index entries
             localIndex = [MongoIndexEntry(name = x['name'],
@@ -65,12 +71,12 @@ class MongoIndex(object):
                                           hash_name = x['hash_name'],
                                           url = x['url'],
                                           datetime = x['datetime'])
-                          for x in mix.find({'name': packageName})]
+                          for x in mcPackageIndex.find({'name': packageName})]
             localIndexExists = len(localIndex) != 0
 
             # Index out-of-date?
             now = datetime.now()
-            if (not localIndexExists or
+            if (forceUpdate or not localIndexExists or
                 (any(pe for pe in localIndex if pe.url is not None) and
                  max(pe.datetime for pe in localIndex if pe.url is not None) - now > self.indexTTL)):
 
@@ -104,7 +110,7 @@ class MongoIndex(object):
                     #!! Update persistent index...
                     localIndex = remoteIndex
                     localIndexExists = True
-                    mix.insert(x._asdict() for x in remoteIndex)
+                    mcPackageIndex.insert(x._asdict() for x in remoteIndex)
 
         return localIndex if localIndexExists else None
 
@@ -123,13 +129,12 @@ class MongoIndex(object):
         def packageStream():
 
             # Open the gridfs
-            with MongoClient(self.mongoUri) as mclient:
-                mdb = mclient[self.mongoDatabase]
-                mfs = gridfs.GridFS(mdb, collection = self.fsCollection)
+            with pymongo.MongoClient(self.mongoUri) as mongoClient:
+                gfsPackageFiles = self._mongoGridFS_PackageFiles(mongoClient)
 
                 # Package file not exist?
-                mfsFilename = self._localFilename(packageName, version)
-                if not mfs.exists(filename = mfsFilename):
+                gfsFilename = self._localFilename(packageName, version)
+                if not gfsPackageFiles.exists(filename = gfsFilename):
 
                     # Download the file
                     assert packageEntry.url, 'Attempt to add package index entry without URL!!'
@@ -143,11 +148,11 @@ class MongoIndex(object):
 
                     # Add the file
                     ctx.log.info('Adding package (%s, %s) (%d bytes)', packageName, version, len(content))
-                    with mfs.new_file(filename = mfsFilename) as mf:
+                    with gfsPackageFiles.new_file(filename = gfsFilename) as mf:
                         mf.write(content)
 
                 # Stream the file chunks
-                with mfs.get_last_version(filename = mfsFilename) as mf:
+                with gfsPackageFiles.get_last_version(filename = gfsFilename) as mf:
                     while True:
                         data = mf.read(self.STREAM_CHUNK_SIZE)
                         if not data:
@@ -170,30 +175,29 @@ class MongoIndex(object):
             return False
 
         # Open the gridfs
-        with MongoClient(self.mongoUri) as mclient:
-            mdb = mclient[self.mongoDatabase]
-            mix = mdb[self.indexCollection]
-            mfs = gridfs.GridFS(mdb, collection = self.fsCollection)
+        with pymongo.MongoClient(self.mongoUri) as mongoClient:
+            mcPackageIndex = self._mongoCollection_PackageIndex(mongoClient)
+            gfsPackageFiles = self._mongoGridFS_PackageFiles(mongoClient)
 
             # File exist?
-            mfsFilename = self._localFilename(packageName, version)
-            if mfs.exists(filename = mfsFilename):
+            gfsFilename = self._localFilename(packageName, version)
+            if gfsPackageFiles.exists(filename = gfsFilename):
                 ctx.log.error('Attempt to add package file (%s, %s) that already exists!', packageName, version)
                 return False
 
             # Add the index
             ctx.log.info('Adding package index (%s, %s)', packageName, version)
-            mix.insert(MongoIndexEntry(name = packageName,
-                                       version = version,
-                                       filename = filename,
-                                       hash = md5.new(content).hexdigest(),
-                                       hash_name = 'md5',
-                                       url = None,
-                                       datetime = datetime.now())._asdict())
+            mcPackageIndex.insert(MongoIndexEntry(name = packageName,
+                                                  version = version,
+                                                  filename = filename,
+                                                  hash = md5.new(content).hexdigest(),
+                                                  hash_name = 'md5',
+                                                  url = None,
+                                                  datetime = datetime.now())._asdict())
 
             # Add the file
             ctx.log.info('Adding package file (%s, %s) (%d bytes)', packageName, version, len(content))
-            with mfs.new_file(filename = mfsFilename) as mf:
+            with gfsPackageFiles.new_file(filename = gfsFilename) as mf:
                 mf.write(content)
 
             return True
