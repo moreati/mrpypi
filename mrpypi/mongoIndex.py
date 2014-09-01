@@ -64,55 +64,53 @@ class MongoIndex(object):
             mcPackageIndex = self._mongoCollection_PackageIndex(mongoClient)
 
             # Get the package index entries
-            localIndex = [MongoIndexEntry(name = x['name'],
-                                          version = x['version'],
-                                          filename = x['filename'],
-                                          hash = x['hash'],
-                                          hash_name = x['hash_name'],
-                                          url = x['url'],
-                                          datetime = x['datetime'])
-                          for x in mcPackageIndex.find({'name': packageName})]
-            localIndexExists = len(localIndex) != 0
+            packageIndex = [MongoIndexEntry(name = x['name'],
+                                            version = x['version'],
+                                            filename = x['filename'],
+                                            hash = x['hash'],
+                                            hash_name = x['hash_name'],
+                                            url = x['url'],
+                                            datetime = x['datetime'])
+                            for x in mcPackageIndex.find({'name': packageName})]
+            packageVersions = set(x.version for x in packageIndex)
 
             # Index out-of-date?
             now = datetime.now()
-            if (forceUpdate or not localIndexExists or
-                (any(pe for pe in localIndex if pe.url is not None) and
-                 max(pe.datetime for pe in localIndex if pe.url is not None) - now > self.indexTTL)):
+            if (forceUpdate or not packageIndex or
+                (any(pe for pe in packageIndex if pe.url is not None) and
+                 max(pe.datetime for pe in packageIndex if pe.url is not None) - now > self.indexTTL)):
 
                 ctx.log.info('Updating index for "%s"', packageName)
 
-                # Read remote index
-                remoteIndex = []
-                remoteExists = False
-                remoteVersions = set()
+                # For each cached pypi index
+                updatePackageIndex = []
                 for indexUrl in self.indexUrls:
                     try:
+                        # Get the pip index
                         pipPackages = pipPackageVersions(indexUrl, packageName)
                         if pipPackages is not None:
-                            remoteExists = True
                             for pipPackage in pipPackages:
-                                if pipPackage.version not in remoteVersions:
-                                    remoteVersions.add(pipPackage.version)
-                                    remoteIndex.append(MongoIndexEntry(name = packageName,
-                                                                       version = pipPackage.version,
-                                                                       filename = pipPackage.link.filename,
-                                                                       hash = pipPackage.link.hash,
-                                                                       hash_name = pipPackage.link.hash_name,
-                                                                       url = pipPackage.link.url,
-                                                                       datetime = now))
+                                # New package version?
+                                pipPackageVersion = self._normalizeVersion(pipPackage.version)
+                                if pipPackageVersion not in packageVersions:
+                                    packageIndexEntry = MongoIndexEntry(name = packageName,
+                                                                        version = pipPackageVersion,
+                                                                        filename = pipPackage.link.filename,
+                                                                        hash = pipPackage.link.hash,
+                                                                        hash_name = pipPackage.link.hash_name,
+                                                                        url = pipPackage.link.url,
+                                                                        datetime = now)
+                                    packageIndex.append(packageIndexEntry)
+                                    updatePackageIndex.append(packageIndexEntry)
+                                    packageVersions.add(pipPackageVersion)
                     except Exception as e:
                         ctx.log.warning('Package versions pip exception for "%s": %s', packageName, e)
 
-                # Remote package exist?
-                if remoteExists:
+                # Insert any new package versions
+                if updatePackageIndex:
+                    mcPackageIndex.insert(x._asdict() for x in updatePackageIndex)
 
-                    #!! Update persistent index...
-                    localIndex = remoteIndex
-                    localIndexExists = True
-                    mcPackageIndex.insert(x._asdict() for x in remoteIndex)
-
-        return localIndex if localIndexExists else None
+        return packageIndex or None
 
 
     def getPackageStream(self, ctx, packageName, version, filename):
