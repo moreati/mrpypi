@@ -4,10 +4,11 @@
 
 import cgi
 import logging
-import urllib
 import xml.sax.saxutils as saxutils
 
 import chisel
+
+from .compat import urllib
 
 
 #
@@ -30,9 +31,9 @@ def pypi_index(ctx, req):
 
     # Build the link URLs
     linkUrls = ['../../pypi_download/{package}/{version}/{filename}{hash}' \
-                .format(package = urllib.pathname2url(pe.name),
-                        version = urllib.pathname2url(pe.version),
-                        filename = urllib.pathname2url(pe.filename),
+                .format(package = urllib.quote(pe.name),
+                        version = urllib.quote(pe.version),
+                        filename = urllib.quote(pe.filename),
                         hash = (('#' + urllib.quote(pe.hash_name) + '=' + urllib.quote(pe.hash))
                                 if pe.hash is not None else ''))
                 for pe in packageIndex]

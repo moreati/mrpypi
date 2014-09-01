@@ -4,12 +4,11 @@
 
 from collections import namedtuple
 from datetime import datetime, timedelta
-import md5
-import urllib2
 
 import gridfs # pymongo
 import pymongo
 
+from .compat import md5, urllib2
 from .indexUtil import pipDefaultIndexes, pipPackageVersions
 
 
