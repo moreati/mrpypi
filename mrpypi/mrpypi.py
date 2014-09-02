@@ -55,7 +55,8 @@ def pypi_index(ctx, req):
 <h1>Links for {package}</h1>
 {linkHtmls}
 </body>
-</html>'''.format(package = cgi.escape(req['package']),
+</html>
+'''.format(package = cgi.escape(req['package']),
                   linkHtmls = '\n'.join(linkHtmls))
 
     return ctx.responseText('200 OK', response, contentType = 'text/html')
