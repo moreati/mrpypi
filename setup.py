@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name = 'mrpypi',
-    version = '0.1.3',
+    version = '0.1.4',
     author = 'Craig Hobbs',
     author_email = 'craigahobbs@gmail.com',
     description = 'Simple, reliable local pypy cache.',
@@ -25,7 +25,7 @@ setup(
     packages = ['mrpypi'],
     test_suite='mrpypi.tests',
     install_requires = [
-        'chisel >= 0.8.3',
+        'chisel >= 0.8.4',
         'pymongo >= 2.6',
     ],
 )
