@@ -3,7 +3,7 @@
 #
 
 from collections import namedtuple
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import gridfs # pymongo
 import pymongo
@@ -16,19 +16,16 @@ MongoIndexEntry = namedtuple('MongoIndexEntry', ('name', 'version', 'filename', 
 
 
 class MongoIndex(object):
-    __slots__ = ('mongoUri', 'mongoDatabase', 'indexCollection', 'fsCollection', 'indexUrls', 'indexTTL')
+    __slots__ = ('mongoUri', 'mongoDatabase', 'indexUrls')
 
     INDEX_COLLECTION_NAME = 'index'
     FILES_COLLECTION_NAME = 'fs'
     STREAM_CHUNK_SIZE = 4096
 
-    def __init__(self, mongoUri = None, mongoDatabase = None, indexUrls = None, indexTTL = None):
-
+    def __init__(self, mongoUri = None, mongoDatabase = None, indexUrls = None):
         self.mongoUri = mongoUri if mongoUri is not None else 'mongodb://localhost:27017'
         self.mongoDatabase = mongoDatabase if mongoDatabase is not None else 'mrpypi'
         self.indexUrls = indexUrls if indexUrls is not None else pipDefaultIndexes()
-        self.indexTTL = indexTTL if indexTTL is not None else timedelta(days = 7)
-
 
     @staticmethod
     def _normalizeName(packageName):
@@ -74,14 +71,11 @@ class MongoIndex(object):
             packageVersions = set(x.version for x in packageIndex)
 
             # Index out-of-date?
-            now = datetime.now()
-            if (forceUpdate or not packageIndex or
-                (any(pe for pe in packageIndex if pe.url is not None) and
-                 max(pe.datetime for pe in packageIndex if pe.url is not None) - now > self.indexTTL)):
-
+            if not packageIndex or forceUpdate:
                 ctx.log.info('Updating index for "%s"', packageName)
 
                 # For each cached pypi index
+                now = datetime.now()
                 updatePackageIndex = []
                 for indexUrl in self.indexUrls:
                     try:
