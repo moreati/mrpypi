@@ -35,7 +35,7 @@ class TestIndex(object):
         return stream
 
     def addPackage(self, ctx, packageName, version, filename, content):
-        pass
+        return True
 
 
 class TestApp(unittest.TestCase):
@@ -119,3 +119,39 @@ class TestApp(unittest.TestCase):
         self.assertEqual(status, '404 Not Found')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
+
+    def test_pypi_upload(self):
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request(
+            'POST', '/pypi_upload',
+            environ = {
+                'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
+            },
+            wsgiInput = '''
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="filetype"
+
+sdist
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="content";filename="package3-1.0.0.tar.gz"
+
+package3 content
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="version"
+
+0.1.4
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name=":action"
+
+file_upload
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="name"
+
+package3
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254--
+
+''')
+        self.assertEqual(status, '200 OK')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')

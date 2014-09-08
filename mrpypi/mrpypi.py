@@ -104,7 +104,7 @@ def pypi_upload(environ, start_response):
         return ctx.responseText('400 Bad Request', '')
     parts = cgi.parse_multipart(ctx.environ['wsgi.input'], pdict)
 
-    def getPart(key, expectedType = str, minLen = 1, strip = True):
+    def getPart(key, expectedType = str, strip = True):
         values = parts.get(key)
         if values is None or not isinstance(values, list) or len(values) != 1:
             return None
@@ -113,7 +113,7 @@ def pypi_upload(environ, start_response):
             return None
         if strip:
             value = value.strip()
-        if minLen is not None and len(value) < minLen:
+        if len(value) <= 0:
             return None
         return value
 
@@ -134,8 +134,8 @@ def pypi_upload(environ, start_response):
         result = ctx.index.addPackage(ctx, package, version, filename, content)
         return ctx.responseText('200 OK' if result else '400 File Exists', '')
 
-    else: # Unknown action
-        return ctx.responseText('400 Bad Request', 'Bad Request')
+    # Unknown action
+    return ctx.responseText('400 Bad Request', 'Bad Request')
 
 
 #
