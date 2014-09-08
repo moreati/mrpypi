@@ -38,9 +38,9 @@ class TestIndex(object):
         return True
 
 
-class TestApp(unittest.TestCase):
+class TestMrpypi(unittest.TestCase):
 
-    def test_pypi_index(self):
+    def test_mrpypi_pypi_index(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_index/package1')
@@ -60,7 +60,7 @@ class TestApp(unittest.TestCase):
 </html>
 ''')
 
-    def test_pypi_index_unverified(self):
+    def test_mrpypi_pypi_index_unverified(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_index/package2')
@@ -80,7 +80,7 @@ class TestApp(unittest.TestCase):
 </html>
 ''')
 
-    def test_pypi_index_notFound(self):
+    def test_mrpypi_pypi_index_notFound(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_index/packageUnknown')
@@ -88,7 +88,7 @@ class TestApp(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
 
-    def test_pypi_download(self):
+    def test_mrpypi_pypi_download(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.1/package1-1.0.1.tar.gz')
@@ -96,7 +96,7 @@ class TestApp(unittest.TestCase):
         self.assertTrue(('Content-Type', 'application/octet-stream') in headers)
         self.assertEqual(content, 'package1-1.0.1')
 
-    def test_pypi_download_packageNotFound(self):
+    def test_mrpypi_pypi_download_packageNotFound(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_download/packageUnknown/1.0.1/packageUnknown-1.0.1.tar.gz')
@@ -104,7 +104,7 @@ class TestApp(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
 
-    def test_pypi_download_versionNotFound(self):
+    def test_mrpypi_pypi_download_versionNotFound(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.2/package1-1.0.2.tar.gz')
@@ -112,7 +112,7 @@ class TestApp(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
 
-    def test_pypi_download_filenameMismatch(self):
+    def test_mrpypi_pypi_download_filenameMismatch(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.1/package2-1.0.2.tar.gz')
@@ -120,7 +120,7 @@ class TestApp(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
 
-    def test_pypi_upload(self):
+    def test_mrpypi_pypi_upload(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request(
