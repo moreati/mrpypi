@@ -101,13 +101,11 @@ def pypi_upload(environ, start_response):
         return ctx.responseText('400 Bad Request', '')
     parts = cgi.parse_multipart(ctx.environ['wsgi.input'], pdict)
 
-    def getPart(key, expectedType = str, strip = True):
+    def getPart(key, strip = True):
         values = parts.get(key)
         if values is None or not isinstance(values, list) or len(values) != 1:
             return None
         value = values[0]
-        if not isinstance(value, expectedType):
-            return None
         if strip:
             value = value.strip()
         if len(value) <= 0:
@@ -122,9 +120,9 @@ def pypi_upload(environ, start_response):
         filetype = getPart('filetype')
         package = getPart('name')
         version = getPart('version')
-        content = getPart('content', expectedType = bytes, strip = False)
+        content = getPart('content', strip = False)
         if filetype not in _uploadFiletypeToExt or package is None or version is None or content is None:
-            return ctx.responseText('400 Bad Request', 'Bad Request')
+            return ctx.responseText('400 Bad Request', '')
 
         # Add the package to the index
         filename = package + '-' + version + _uploadFiletypeToExt[filetype]
@@ -132,7 +130,7 @@ def pypi_upload(environ, start_response):
         return ctx.responseText('200 OK' if result else '400 File Exists', '')
 
     # Unknown action
-    return ctx.responseText('400 Bad Request', 'Bad Request')
+    return ctx.responseText('400 Bad Request', '')
 
 
 #

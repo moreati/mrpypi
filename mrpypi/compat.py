@@ -20,7 +20,7 @@ else:
     cgi = _cgi
 
 # md5
-if PY3:
+if PY3: # pragma: no cover
     import hashlib as _hashlib
     md5 = _hashlib
 else:

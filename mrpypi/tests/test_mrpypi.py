@@ -67,6 +67,7 @@ class TestMrpypi(unittest.TestCase):
 </html>
 ''')
 
+
     def test_mrpypi_pypi_index_unverified(self):
 
         app = MrPyPi(TestIndex())
@@ -87,6 +88,7 @@ class TestMrpypi(unittest.TestCase):
 </html>
 ''')
 
+
     def test_mrpypi_pypi_index_notFound(self):
 
         app = MrPyPi(TestIndex())
@@ -94,6 +96,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertEqual(status, '404 Not Found')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
+
 
     def test_mrpypi_pypi_download(self):
 
@@ -103,6 +106,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertTrue(('Content-Type', 'application/octet-stream') in headers)
         self.assertEqual(content, 'package1-1.0.1')
 
+
     def test_mrpypi_pypi_download_packageNotFound(self):
 
         app = MrPyPi(TestIndex())
@@ -110,6 +114,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertEqual(status, '404 Not Found')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
+
 
     def test_mrpypi_pypi_download_versionNotFound(self):
 
@@ -119,6 +124,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
 
+
     def test_mrpypi_pypi_download_filenameMismatch(self):
 
         app = MrPyPi(TestIndex())
@@ -126,6 +132,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertEqual(status, '404 Not Found')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, 'Not Found')
+
 
     def test_mrpypi_pypi_upload(self):
 
@@ -188,3 +195,248 @@ package3
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'application/octet-stream') in headers)
         self.assertEqual(content, 'package3-1.0.0')
+
+
+    def test_mrpypi_pypi_upload_existing_index(self):
+
+        upload_environ = {
+            'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
+        }
+        upload_content = '''
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="filetype"
+
+sdist
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="content";filename="package1-1.0.2.tar.gz"
+
+package1 content
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="version"
+
+1.0.2
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name=":action"
+
+file_upload
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="name"
+
+package1
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254--
+
+'''
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '200 OK')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
+
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '400 File Exists')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
+
+
+    def test_mrpypi_pypi_upload_invalid_contentType(self):
+
+        upload_environ = {
+            'CONTENT_TYPE': 'text/plain',
+        }
+        upload_content = ''
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '400 Bad Request')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
+
+
+    def test_mrpypi_pypi_upload_invalid_action(self):
+
+        upload_environ = {
+            'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
+        }
+        upload_content = '''
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="filetype"
+
+sdist
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="content";filename="package3-1.0.0.tar.gz"
+
+package3 content
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="version"
+
+1.0.0
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name=":action"
+
+invalid_action
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="name"
+
+package3
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254--
+
+'''
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '400 Bad Request')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
+
+
+    def test_mrpypi_pypi_upload_multiple_action(self):
+
+        upload_environ = {
+            'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
+        }
+        upload_content = '''
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="filetype"
+
+sdist
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="content";filename="package3-1.0.0.tar.gz"
+
+package3 content
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="version"
+
+1.0.0
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name=":action"
+
+file_upload
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name=":action"
+
+file_upload2
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="name"
+
+package3
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254--
+
+'''
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '400 Bad Request')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
+
+
+    def test_mrpypi_pypi_upload_invalid_filetype(self):
+
+        upload_environ = {
+            'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
+        }
+        upload_content = '''
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="filetype"
+
+invalid_filetype
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="content";filename="package3-1.0.0.tar.gz"
+
+package3 content
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="version"
+
+1.0.0
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name=":action"
+
+file_upload
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="name"
+
+package3
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254--
+
+'''
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '400 Bad Request')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
+
+
+    def test_mrpypi_pypi_upload_invalid_version(self):
+
+        upload_environ = {
+            'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
+        }
+        upload_content = '''
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="filetype"
+
+sdist
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="content";filename="package3-1.0.0.tar.gz"
+
+package3 content
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="version"
+
+
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name=":action"
+
+file_upload
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="name"
+
+package3
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254--
+
+'''
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '400 Bad Request')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
+
+
+    def test_mrpypi_pypi_upload_invalid_content(self):
+
+        upload_environ = {
+            'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
+        }
+        upload_content = '''
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="filetype"
+
+sdist
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="content";filename="package3-1.0.0.tar.gz"
+
+
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="version"
+
+1.0.0
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name=":action"
+
+file_upload
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
+Content-Disposition: form-data; name="name"
+
+package3
+----------------GHSKFJDLGDS7543FJKLFHRE75642756743254--
+
+'''
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '400 Bad Request')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
