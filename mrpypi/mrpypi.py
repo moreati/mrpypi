@@ -29,20 +29,17 @@ def pypi_index(ctx, req):
     if packageIndex is None:
         return ctx.responseText('404 Not Found', 'Not Found')
 
-    # Build the link URLs
-    linkUrls = ['../../pypi_download/{package}/{version}/{filename}{hash}' \
-                .format(package = urllib.quote(pe.name),
-                        version = urllib.quote(pe.version),
-                        filename = urllib.quote(pe.filename),
-                        hash = (('#' + urllib.quote(pe.hash_name) + '=' + urllib.quote(pe.hash))
-                                if pe.hash is not None else ''))
-                for pe in packageIndex]
-
     # Build the link HTML
-    linkHtmls = ['<a href={linkUrlHref} rel="internal">{linkUrlText}</a><br/>' \
-                 .format(linkUrlHref = saxutils.quoteattr(linkUrl),
-                         linkUrlText = cgi.escape(linkUrl))
-                 for linkUrl in linkUrls]
+    linkHtmls = [
+        '<a href={linkUrlHref} rel="internal">{filenameText}</a><br/>'.format(
+            linkUrlHref = saxutils.quoteattr('../../pypi_download/{package}/{version}/{filename}{hash}'.format(
+                package = urllib.quote(pe.name),
+                version = urllib.quote(pe.version),
+                filename = urllib.quote(pe.filename),
+                hash = (('#' + urllib.quote(pe.hash_name) + '=' + urllib.quote(pe.hash))
+                        if pe.hash is not None else ''))),
+            filenameText = cgi.escape(pe.filename))
+        for pe in packageIndex]
 
     # Build the index response
     response = '''\

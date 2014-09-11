@@ -6,6 +6,7 @@ from collections import namedtuple
 import unittest
 
 from mrpypi import MrPyPi
+from mrpypi.compat import md5
 
 
 TestIndexEntry = namedtuple('TestIndexEntry', ('name', 'version', 'filename', 'hash_name', 'hash'))
@@ -35,6 +36,12 @@ class TestIndex(object):
         return stream
 
     def addPackage(self, ctx, packageName, version, filename, content):
+        index = self.getPackageIndex(ctx, packageName)
+        if index:
+            indexEntry = next((x for x in index if x.version == version), None)
+            if indexEntry:
+                return False
+        self._packages.append(TestIndexEntry(packageName, version, filename, 'md5', md5.new(content).hexdigest()))
         return True
 
 
@@ -54,8 +61,8 @@ class TestMrpypi(unittest.TestCase):
 </head>
 <body>
 <h1>Links for package1</h1>
-<a href="../../pypi_download/package1/1.0.0/package1-1.0.0.tar.gz#md5=53bc481b565a8eb2bc72c0b4a66e9c44" rel="internal">../../pypi_download/package1/1.0.0/package1-1.0.0.tar.gz#md5=53bc481b565a8eb2bc72c0b4a66e9c44</a><br/>
-<a href="../../pypi_download/package1/1.0.1/package1-1.0.1.tar.gz#md5=53bc481b565a8eb2bc72c0b4a66e9c45" rel="internal">../../pypi_download/package1/1.0.1/package1-1.0.1.tar.gz#md5=53bc481b565a8eb2bc72c0b4a66e9c45</a><br/>
+<a href="../../pypi_download/package1/1.0.0/package1-1.0.0.tar.gz#md5=53bc481b565a8eb2bc72c0b4a66e9c44" rel="internal">package1-1.0.0.tar.gz</a><br/>
+<a href="../../pypi_download/package1/1.0.1/package1-1.0.1.tar.gz#md5=53bc481b565a8eb2bc72c0b4a66e9c45" rel="internal">package1-1.0.1.tar.gz</a><br/>
 </body>
 </html>
 ''')
@@ -74,8 +81,8 @@ class TestMrpypi(unittest.TestCase):
 </head>
 <body>
 <h1>Links for package2</h1>
-<a href="../../pypi_download/package2/1.0.0/package2-1.0.0.tar.gz" rel="internal">../../pypi_download/package2/1.0.0/package2-1.0.0.tar.gz</a><br/>
-<a href="../../pypi_download/package2/1.0.1/package2-1.0.1.tar.gz" rel="internal">../../pypi_download/package2/1.0.1/package2-1.0.1.tar.gz</a><br/>
+<a href="../../pypi_download/package2/1.0.0/package2-1.0.0.tar.gz" rel="internal">package2-1.0.0.tar.gz</a><br/>
+<a href="../../pypi_download/package2/1.0.1/package2-1.0.1.tar.gz" rel="internal">package2-1.0.1.tar.gz</a><br/>
 </body>
 </html>
 ''')
@@ -122,13 +129,10 @@ class TestMrpypi(unittest.TestCase):
 
     def test_mrpypi_pypi_upload(self):
 
-        app = MrPyPi(TestIndex())
-        status, headers, content = app.request(
-            'POST', '/pypi_upload',
-            environ = {
-                'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
-            },
-            wsgiInput = '''
+        upload_environ = {
+            'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
+        }
+        upload_content = '''
 ----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
 Content-Disposition: form-data; name="filetype"
 
@@ -140,7 +144,7 @@ package3 content
 ----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
 Content-Disposition: form-data; name="version"
 
-0.1.4
+1.0.0
 ----------------GHSKFJDLGDS7543FJKLFHRE75642756743254
 Content-Disposition: form-data; name=":action"
 
@@ -151,7 +155,36 @@ Content-Disposition: form-data; name="name"
 package3
 ----------------GHSKFJDLGDS7543FJKLFHRE75642756743254--
 
-''')
+'''
+
+        app = MrPyPi(TestIndex())
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, '')
+
+        status, headers, content = app.request('POST', '/pypi_upload', environ = upload_environ, wsgiInput = upload_content)
+        self.assertEqual(status, '400 File Exists')
+        self.assertTrue(('Content-Type', 'text/plain') in headers)
+        self.assertEqual(content, '')
+
+        status, headers, content = app.request('GET', '/pypi_index/package3')
+        self.assertEqual(status, '200 OK')
+        self.assertTrue(('Content-Type', 'text/html') in headers)
+        self.assertEqual(content, '''\
+<html>
+<head>
+<title>Links for package3</title>
+<meta name="api-version" value="2" />
+</head>
+<body>
+<h1>Links for package3</h1>
+<a href="../../pypi_download/package3/1.0.0/package3-1.0.0.tar.gz#md5=df9f61bece81c091f7044368fcf62501" rel="internal">package3-1.0.0.tar.gz</a><br/>
+</body>
+</html>
+''')
+
+        status, headers, content = app.request('GET', '/pypi_download/package3/1.0.0/package3-1.0.0.tar.gz')
+        self.assertEqual(status, '200 OK')
+        self.assertTrue(('Content-Type', 'application/octet-stream') in headers)
+        self.assertEqual(content, 'package3-1.0.0')
