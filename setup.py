@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name = 'mrpypi',
-    version = '0.1.4',
+    version = '0.1.5',
     author = 'Craig Hobbs',
     author_email = 'craigahobbs@gmail.com',
     description = 'Simple, reliable local pypy cache.',
