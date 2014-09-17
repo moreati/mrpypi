@@ -15,6 +15,15 @@ from .indexUtil import pipDefaultIndexes, pipPackageVersions
 MongoIndexEntry = namedtuple('MongoIndexEntry', ('name', 'version', 'filename', 'hash', 'hash_name', 'url', 'datetime'))
 
 
+# Prefer tarball's over files of other extensions...
+_pipPackageExtOrder = ('.tar.gz', '.zip', '.tar.bz2')
+def _pipPackageSortKey(pipPackage):
+    try:
+        return (pipPackage.version, _pipPackageExtOrder.index(pipPackage.link.ext))
+    except ValueError:
+        return (pipPackage.version, len(_pipPackageExtOrder))
+
+
 class MongoIndex(object):
     __slots__ = ('mongoUri', 'mongoDatabase', 'indexUrls')
 
@@ -82,7 +91,7 @@ class MongoIndex(object):
                         # Get the pip index
                         pipPackages = pipPackageVersions(indexUrl, packageName)
                         if pipPackages is not None:
-                            for pipPackage in pipPackages:
+                            for pipPackage in sorted(pipPackages, key = _pipPackageSortKey):
                                 # New package version?
                                 pipPackageVersion = self._normalizeVersion(pipPackage.version)
                                 if pipPackageVersion not in packageVersions:
