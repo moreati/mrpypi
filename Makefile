@@ -1,15 +1,31 @@
 # -*- makefile-gmake -*-
 #
-# Copyright (C) 2014 Craig Hobbs
+# Copyright (C) 2012-2014 Craig Hobbs
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 #
 
 PACKAGE_NAME = mrpypi
-PACKAGE_TESTS = $(PACKAGE_NAME)/tests
 
 # Local directories
 ENV = .env
 COVER = .cover
-PYFLAKES = .pyflakes
 
 # Python version support
 PYTHON_VERSIONS = \
@@ -62,36 +78,41 @@ setup:
 		$(foreach P, $(PYTHON_VERSIONS),$(if $(shell which python$P),,python$P))
 	sudo pip install -U pip virtualenv
 
-# Macro to generate virtualenv rules - env_name, python_version, packages, commands
+# Function to generate virtualenv rules - env_name, python_version, packages, commands
 define ENV_RULE
-$(ENV)/$(strip $(1)):
-	virtualenv -p python$(strip $(2)) $$@
-	$(if $(strip $(3)), . $$@/bin/activate && pip install $(3))
+BUILD_$(strip $(1)) := $(ENV)/$(strip $(1)).build
 
-.PHONY: $(1)
-$(1): $(ENV)/$(strip $(1))
-	$(4)
+$$(BUILD_$(strip $(1))):
+	virtualenv -p python$(strip $(2)) $(ENV)/$(strip $(1))
+	$(if $(strip $(3)),$(call PYTHON, $(1)) -m pip install $(strip $(3)))
+	touch $$@
+
+.PHONY: $(strip $(1))
+$(strip $(1)): $$(BUILD_$(strip $(1)))
+$(call $(4), $(1))
 endef
+
+# Function to generate an environment rule's python interpreter
+PYTHON = $(ENV)/$(strip $(1))/bin/python -s -E
 
 # Generate test rules
 define TEST_COMMANDS
-	. $$</bin/activate && python setup.py test
+	$(call PYTHON, $(1)) setup.py test
 endef
-$(foreach V, $(PYTHON_VERSIONS), $(eval $(call ENV_RULE, test_$(V), $(V), , $(TEST_COMMANDS))))
+$(foreach V, $(PYTHON_VERSIONS), $(eval $(call ENV_RULE, test_$(V), $(V), , TEST_COMMANDS)))
 
 # Generate coverage rule
 define COVER_COMMANDS
-	. $$</bin/activate && \
-		coverage run --branch --source $(PACKAGE_NAME) setup.py test && \
-		coverage html -d $(COVER) && \
-		coverage report
+	$(call PYTHON, $(1)) -m coverage run --branch --source $(PACKAGE_NAME) setup.py test
+	$(call PYTHON, $(1)) -m coverage html -d $(COVER)
+	$(call PYTHON, $(1)) -m coverage report
 	@echo
 	@echo Coverage report is $(COVER)/index.html
 endef
-$(eval $(call ENV_RULE, cover, $(firstword $(PYTHON_VERSIONS)), coverage, $(COVER_COMMANDS)))
+$(eval $(call ENV_RULE, cover, $(firstword $(PYTHON_VERSIONS)), coverage, COVER_COMMANDS))
 
 # Generate pyflakes rule
 define PYFLAKES_COMMANDS
-	. $$</bin/activate && pyflakes ./$(PACKAGE_NAME)
+	$(call PYTHON, $(1)) -m pyflakes ./$(PACKAGE_NAME)
 endef
-$(eval $(call ENV_RULE, pyflakes, $(firstword $(PYTHON_VERSIONS)), pyflakes, $(PYFLAKES_COMMANDS)))
+$(eval $(call ENV_RULE, pyflakes, $(firstword $(PYTHON_VERSIONS)), pyflakes, PYFLAKES_COMMANDS))
