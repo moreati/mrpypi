@@ -4,6 +4,8 @@
 
 from setuptools import setup
 
+tests_require = []
+
 setup(
     name = 'mrpypi',
     version = '0.1.6',
@@ -23,9 +25,13 @@ setup(
         'Programming Language :: Python :: 3.4',
     ],
     packages = ['mrpypi'],
-    test_suite='mrpypi.tests',
     install_requires = [
         'chisel >= 0.8.4',
         'pymongo >= 2.6',
     ],
+    test_suite='mrpypi.tests',
+    tests_require = tests_require,
+    extras_require = {
+        'tests': tests_require,
+    },
 )
