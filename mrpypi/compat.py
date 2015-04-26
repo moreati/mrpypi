@@ -7,9 +7,10 @@ import sys
 PY3 = (sys.version_info >= (3, 0))
 
 # cgi
-if PY3: # pragma: no cover
+if PY3:  # pragma: no cover
     import cgi as _cgi
     import html as _html
+
     class cgi(object):
         __slots__ = ()
         escape = _html.escape
@@ -20,20 +21,22 @@ else:
     cgi = _cgi
 
 # md5
-if PY3: # pragma: no cover
+if PY3:  # pragma: no cover
     import hashlib as _hashlib
-    md5 = _hashlib
+    md5_new = _hashlib.md5
 else:
     import md5 as _md5
-    md5 = _md5
+    md5_new = _md5.new
 
 # urllib, urllib2, urlparse
-if PY3: # pragma: no cover
+if PY3:  # pragma: no cover
     import urllib.parse as _urllib_parse
     import urllib.request as _urllib_request
+
     class urllib(object):
         __slots__ = ()
         quote = _urllib_parse.quote
+
     class urllib2(object):
         __slots__ = ()
         Request = _urllib_request.Request

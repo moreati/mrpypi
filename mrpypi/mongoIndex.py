@@ -5,10 +5,10 @@
 from collections import namedtuple
 from datetime import datetime
 
-import gridfs # pymongo
+import gridfs  # pymongo
 import pymongo
 
-from .compat import md5, urllib2
+from .compat import md5_new, urllib2
 from .indexUtil import pipDefaultIndexes, pipPackageVersions
 
 
@@ -17,6 +17,8 @@ MongoIndexEntry = namedtuple('MongoIndexEntry', ('name', 'version', 'filename', 
 
 # Prefer tarball's over files of other extensions...
 _pipPackageExtOrder = ('.tar.gz', '.zip', '.tar.bz2')
+
+
 def _pipPackageSortKey(pipPackage):
     try:
         return (pipPackage.version, _pipPackageExtOrder.index(pipPackage.link.ext))
@@ -31,7 +33,7 @@ class MongoIndex(object):
     FILES_COLLECTION_NAME = 'fs'
     STREAM_CHUNK_SIZE = 4096
 
-    def __init__(self, mongoUri = None, mongoDatabase = None, indexUrls = None):
+    def __init__(self, mongoUri=None, mongoDatabase=None, indexUrls=None):
         self.mongoUri = mongoUri if mongoUri is not None else 'mongodb://localhost:27017'
         self.mongoDatabase = mongoDatabase if mongoDatabase is not None else 'mrpypi'
         self.indexUrls = indexUrls if indexUrls is not None else pipDefaultIndexes()
@@ -54,14 +56,13 @@ class MongoIndex(object):
 
     def _mongoCollection_PackageIndex(self, mongoClient):
         mcPackageIndex = mongoClient[self.mongoDatabase][self.INDEX_COLLECTION_NAME]
-        mcPackageIndex.ensure_index([('name', pymongo.ASCENDING), ('version', pymongo.ASCENDING)], unique = True)
+        mcPackageIndex.ensure_index([('name', pymongo.ASCENDING), ('version', pymongo.ASCENDING)], unique=True)
         return mcPackageIndex
 
     def _mongoGridFS_PackageFiles(self, mongoClient):
-        return gridfs.GridFS(mongoClient[self.mongoDatabase], collection = self.FILES_COLLECTION_NAME)
+        return gridfs.GridFS(mongoClient[self.mongoDatabase], collection=self.FILES_COLLECTION_NAME)
 
-
-    def getPackageIndex(self, ctx, packageName, forceUpdate = False):
+    def getPackageIndex(self, ctx, packageName, forceUpdate=False):
         packageName = self._normalizeName(packageName)
 
         # Read mongo index
@@ -69,13 +70,13 @@ class MongoIndex(object):
             mcPackageIndex = self._mongoCollection_PackageIndex(mongoClient)
 
             # Get the package index entries
-            packageIndex = [MongoIndexEntry(name = x['name'],
-                                            version = x['version'],
-                                            filename = x['filename'],
-                                            hash = x['hash'],
-                                            hash_name = x['hash_name'],
-                                            url = x['url'],
-                                            datetime = x['datetime'])
+            packageIndex = [MongoIndexEntry(name=x['name'],
+                                            version=x['version'],
+                                            filename=x['filename'],
+                                            hash=x['hash'],
+                                            hash_name=x['hash_name'],
+                                            url=x['url'],
+                                            datetime=x['datetime'])
                             for x in mcPackageIndex.find({'name': packageName})]
             packageVersions = set(x.version for x in packageIndex)
 
@@ -91,17 +92,17 @@ class MongoIndex(object):
                         # Get the pip index
                         pipPackages = pipPackageVersions(indexUrl, packageName)
                         if pipPackages is not None:
-                            for pipPackage in sorted(pipPackages, key = _pipPackageSortKey):
+                            for pipPackage in sorted(pipPackages, key=_pipPackageSortKey):
                                 # New package version?
                                 pipPackageVersion = self._normalizeVersion(pipPackage.version)
                                 if pipPackageVersion not in packageVersions:
-                                    packageIndexEntry = MongoIndexEntry(name = packageName,
-                                                                        version = pipPackageVersion,
-                                                                        filename = pipPackage.link.filename,
-                                                                        hash = pipPackage.link.hash,
-                                                                        hash_name = pipPackage.link.hash_name,
-                                                                        url = pipPackage.link.url,
-                                                                        datetime = now)
+                                    packageIndexEntry = MongoIndexEntry(name=packageName,
+                                                                        version=pipPackageVersion,
+                                                                        filename=pipPackage.link.filename,
+                                                                        hash=pipPackage.link.hash,
+                                                                        hash_name=pipPackage.link.hash_name,
+                                                                        url=pipPackage.link.url,
+                                                                        datetime=now)
                                     packageIndex.append(packageIndexEntry)
                                     updatePackageIndex.append(packageIndexEntry)
                                     packageVersions.add(pipPackageVersion)
@@ -113,7 +114,6 @@ class MongoIndex(object):
                     mcPackageIndex.insert(x._asdict() for x in updatePackageIndex)
 
         return packageIndex or None
-
 
     def getPackageStream(self, ctx, packageName, version, filename):
         packageName = self._normalizeName(packageName)
@@ -134,12 +134,12 @@ class MongoIndex(object):
 
                 # Package file not exist?
                 gfsFilename = self._localFilename(packageName, version)
-                if not gfsPackageFiles.exists(filename = gfsFilename):
+                if not gfsPackageFiles.exists(filename=gfsFilename):
 
                     # Download the file
                     assert packageEntry.url, 'Attempt to add package index entry without URL!!'
                     ctx.log.info('Downloading package (%s, %s) from "%s"', packageName, version, packageEntry.url)
-                    req = urllib2.Request(url = packageEntry.url)
+                    req = urllib2.Request(url=packageEntry.url)
                     reqf = urllib2.urlopen(req)
                     try:
                         content = reqf.read()
@@ -148,11 +148,11 @@ class MongoIndex(object):
 
                     # Add the file
                     ctx.log.info('Adding package (%s, %s) (%d bytes)', packageName, version, len(content))
-                    with gfsPackageFiles.new_file(filename = gfsFilename) as mf:
+                    with gfsPackageFiles.new_file(filename=gfsFilename) as mf:
                         mf.write(content)
 
                 # Stream the file chunks
-                with gfsPackageFiles.get_last_version(filename = gfsFilename) as mf:
+                with gfsPackageFiles.get_last_version(filename=gfsFilename) as mf:
                     while True:
                         data = mf.read(self.STREAM_CHUNK_SIZE)
                         if not data:
@@ -160,7 +160,6 @@ class MongoIndex(object):
                         yield data
 
         return packageStream
-
 
     def addPackage(self, ctx, packageName, version, filename, content):
         packageName = self._normalizeName(packageName)
@@ -181,23 +180,23 @@ class MongoIndex(object):
 
             # File exist?
             gfsFilename = self._localFilename(packageName, version)
-            if gfsPackageFiles.exists(filename = gfsFilename):
+            if gfsPackageFiles.exists(filename=gfsFilename):
                 ctx.log.error('Attempt to add package file (%s, %s) that already exists!', packageName, version)
                 return False
 
             # Add the index
             ctx.log.info('Adding package index (%s, %s)', packageName, version)
-            mcPackageIndex.insert(MongoIndexEntry(name = packageName,
-                                                  version = version,
-                                                  filename = filename,
-                                                  hash = md5.new(content).hexdigest(),
-                                                  hash_name = 'md5',
-                                                  url = None,
-                                                  datetime = datetime.now())._asdict())
+            mcPackageIndex.insert(MongoIndexEntry(name=packageName,
+                                                  version=version,
+                                                  filename=filename,
+                                                  hash=md5_new(content).hexdigest(),
+                                                  hash_name='md5',
+                                                  url=None,
+                                                  datetime=datetime.now())._asdict())
 
             # Add the file
             ctx.log.info('Adding package file (%s, %s) (%d bytes)', packageName, version, len(content))
-            with gfsPackageFiles.new_file(filename = gfsFilename) as mf:
+            with gfsPackageFiles.new_file(filename=gfsFilename) as mf:
                 mf.write(content)
 
             return True

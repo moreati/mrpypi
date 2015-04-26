@@ -15,8 +15,8 @@ from .compat import urllib
 # Pypi package index page
 #
 
-@chisel.action(urls = ['/pypi_index/{package}', '/pypi_index/{package}/'], wsgiResponse = True,
-               spec = '''\
+@chisel.action(urls=['/pypi_index/{package}', '/pypi_index/{package}/'], wsgiResponse=True,
+               spec='''\
 action pypi_index
     input
         string package
@@ -32,13 +32,13 @@ def pypi_index(ctx, req):
     # Build the link HTML
     linkHtmls = [
         '<a href={linkUrlHref} rel="internal">{filenameText}</a><br/>'.format(
-            linkUrlHref = saxutils.quoteattr('../../pypi_download/{package}/{version}/{filename}{hash}'.format(
-                package = urllib.quote(pe.name),
-                version = urllib.quote(pe.version),
-                filename = urllib.quote(pe.filename),
-                hash = (('#' + urllib.quote(pe.hash_name) + '=' + urllib.quote(pe.hash))
-                        if pe.hash is not None else ''))),
-            filenameText = cgi.escape(pe.filename))
+            linkUrlHref=saxutils.quoteattr('../../pypi_download/{package}/{version}/{filename}{hash}'.format(
+                package=urllib.quote(pe.name),
+                version=urllib.quote(pe.version),
+                filename=urllib.quote(pe.filename),
+                hash=(('#' + urllib.quote(pe.hash_name) + '=' + urllib.quote(pe.hash))
+                      if pe.hash is not None else ''))),
+            filenameText=cgi.escape(pe.filename))
         for pe in packageIndex]
 
     # Build the index response
@@ -53,18 +53,18 @@ def pypi_index(ctx, req):
 {linkHtmls}
 </body>
 </html>
-'''.format(package = cgi.escape(req['package']),
-           linkHtmls = '\n'.join(linkHtmls))
+'''.format(package=cgi.escape(req['package']),
+           linkHtmls='\n'.join(linkHtmls))
 
-    return ctx.responseText('200 OK', response, contentType = 'text/html')
+    return ctx.responseText('200 OK', response, contentType='text/html')
 
 
 #
 # Pypi package download
 #
 
-@chisel.action(urls = ['/pypi_download/{package}/{version}/{filename}'], wsgiResponse = True,
-               spec = '''\
+@chisel.action(urls=['/pypi_download/{package}/{version}/{filename}'], wsgiResponse=True,
+               spec='''\
 action pypi_download
     input
         string package
@@ -79,7 +79,7 @@ def pypi_download(ctx, req):
         return ctx.responseText('404 Not Found', 'Not Found')
 
     # Stream the package
-    ctx.start_response('200 OK', [('Content-Type','application/octet-stream')])
+    ctx.start_response('200 OK', [('Content-Type', 'application/octet-stream')])
     return packageStream()
 
 
@@ -91,23 +91,30 @@ _uploadFiletypeToExt = {
     'sdist': '.tar.gz'
 }
 
+
 @chisel.request
 def pypi_upload(environ, start_response):
     ctx = environ[chisel.Application.ENVIRON_APP]
 
     # Decode the multipart post
     ctype, pdict = cgi.parse_header(ctx.environ.get('CONTENT_TYPE', ''))
+
+    # Ensure boundary is bytes for Python3
+    boundary = pdict.get('boundary')
+    if boundary is not None:
+        pdict['boundary'] = boundary.encode('ascii')
+
     if ctype != 'multipart/form-data':
         return ctx.responseText('400 Bad Request', '')
     parts = cgi.parse_multipart(ctx.environ['wsgi.input'], pdict)
 
-    def getPart(key, strip = True):
+    def getPart(key, strip=True):
         values = parts.get(key)
         if values is None or not isinstance(values, list) or len(values) != 1:
             return None
         value = values[0]
         if strip:
-            value = value.strip()
+            value = value.strip().decode('utf-8')
         if len(value) <= 0:
             return None
         return value
@@ -120,7 +127,7 @@ def pypi_upload(environ, start_response):
         filetype = getPart('filetype')
         package = getPart('name')
         version = getPart('version')
-        content = getPart('content', strip = False)
+        content = getPart('content', strip=False)
         if filetype not in _uploadFiletypeToExt or package is None or version is None or content is None:
             return ctx.responseText('400 Bad Request', '')
 

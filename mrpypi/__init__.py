@@ -3,9 +3,7 @@
 #
 
 from . import mrpypi as _mrpypi
-
-MrPyPi = _mrpypi.MrPyPi
-
 from . import mongoIndex as _mongoIndex
 
+MrPyPi = _mrpypi.MrPyPi
 MongoIndex = _mongoIndex.MongoIndex
