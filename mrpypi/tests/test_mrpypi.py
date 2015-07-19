@@ -6,7 +6,7 @@ from collections import namedtuple
 import unittest
 
 from mrpypi import MrPyPi
-from mrpypi.compat import md5_new
+from mrpypi.compat import hashlib_md5_new
 
 
 TestIndexEntry = namedtuple('TestIndexEntry', ('name', 'version', 'filename', 'hash_name', 'hash'))
@@ -20,7 +20,7 @@ class TestIndex(object):
                           TestIndexEntry('package2', '1.0.0', 'package2-1.0.0.tar.gz', None, None),
                           TestIndexEntry('package2', '1.0.1', 'package2-1.0.1.tar.gz', None, None)]
 
-    def getPackageIndex(self, ctx, packageName, forceUpdate=False):
+    def getPackageIndex(self, dummy_ctx, packageName, dummy_forceUpdate=False):
         return [x for x in self._packages if x.name == packageName] or None
 
     def getPackageStream(self, ctx, packageName, version, filename):
@@ -43,7 +43,7 @@ class TestIndex(object):
             indexEntry = next((x for x in index if x.version == version), None)
             if indexEntry:
                 return False
-        self._packages.append(TestIndexEntry(packageName, version, filename, 'md5', md5_new(content).hexdigest()))
+        self._packages.append(TestIndexEntry(packageName, version, filename, 'md5', hashlib_md5_new(content).hexdigest()))
         return True
 
 

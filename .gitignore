@@ -6,5 +6,6 @@
 .env/
 .cover/
 .coverage
+.makefile
 build/
 dist/

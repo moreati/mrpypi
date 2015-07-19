@@ -8,7 +8,7 @@ import xml.sax.saxutils as saxutils
 
 import chisel
 
-from .compat import urllib
+from .compat import html_escape, urllib_parse_quote
 
 
 #
@@ -33,12 +33,12 @@ def pypi_index(ctx, req):
     linkHtmls = [
         '<a href={linkUrlHref} rel="internal">{filenameText}</a><br/>'.format(
             linkUrlHref=saxutils.quoteattr('../../pypi_download/{package}/{version}/{filename}{hash}'.format(
-                package=urllib.quote(pe.name),
-                version=urllib.quote(pe.version),
-                filename=urllib.quote(pe.filename),
-                hash=(('#' + urllib.quote(pe.hash_name) + '=' + urllib.quote(pe.hash))
+                package=urllib_parse_quote(pe.name),
+                version=urllib_parse_quote(pe.version),
+                filename=urllib_parse_quote(pe.filename),
+                hash=(('#' + urllib_parse_quote(pe.hash_name) + '=' + urllib_parse_quote(pe.hash))
                       if pe.hash is not None else ''))),
-            filenameText=cgi.escape(pe.filename))
+            filenameText=html_escape(pe.filename))
         for pe in packageIndex]
 
     # Build the index response
@@ -53,7 +53,7 @@ def pypi_index(ctx, req):
 {linkHtmls}
 </body>
 </html>
-'''.format(package=cgi.escape(req['package']),
+'''.format(package=html_escape(req['package']),
            linkHtmls='\n'.join(linkHtmls))
 
     return ctx.responseText('200 OK', response, contentType='text/html')
@@ -93,7 +93,7 @@ _uploadFiletypeToExt = {
 
 
 @chisel.request
-def pypi_upload(environ, start_response):
+def pypi_upload(environ, dummy_start_response):
     ctx = environ[chisel.Application.ENVIRON_APP]
 
     # Decode the multipart post

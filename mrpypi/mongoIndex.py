@@ -8,7 +8,7 @@ from datetime import datetime
 import gridfs  # pymongo
 import pymongo
 
-from .compat import md5_new, urllib2
+from .compat import hashlib_md5_new, urllib_request_Request, urllib_request_urlopen
 from .indexUtil import pipDefaultIndexes, pipPackageVersions
 
 
@@ -106,7 +106,7 @@ class MongoIndex(object):
                                     packageIndex.append(packageIndexEntry)
                                     updatePackageIndex.append(packageIndexEntry)
                                     packageVersions.add(pipPackageVersion)
-                    except Exception as e:
+                    except Exception as e: # pylint: disable=broad-except
                         ctx.log.warning('Package versions pip exception for "%s": %s', packageName, e)
 
                 # Insert any new package versions
@@ -139,8 +139,8 @@ class MongoIndex(object):
                     # Download the file
                     assert packageEntry.url, 'Attempt to add package index entry without URL!!'
                     ctx.log.info('Downloading package (%s, %s) from "%s"', packageName, version, packageEntry.url)
-                    req = urllib2.Request(url=packageEntry.url)
-                    reqf = urllib2.urlopen(req)
+                    req = urllib_request_Request(url=packageEntry.url)
+                    reqf = urllib_request_urlopen(req)
                     try:
                         content = reqf.read()
                     finally:
@@ -189,7 +189,7 @@ class MongoIndex(object):
             mcPackageIndex.insert(MongoIndexEntry(name=packageName,
                                                   version=version,
                                                   filename=filename,
-                                                  hash=md5_new(content).hexdigest(),
+                                                  hash=hashlib_md5_new(content).hexdigest(),
                                                   hash_name='md5',
                                                   url=None,
                                                   datetime=datetime.now())._asdict())

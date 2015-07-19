@@ -4,45 +4,24 @@
 
 import sys
 
-PY3 = (sys.version_info >= (3, 0))
+_PY3 = (sys.version_info >= (3, 0))
 
-# cgi
-if PY3:  # pragma: no cover
-    import cgi as _cgi
-    import html as _html
+# hashlib
+if _PY3:
+    from hashlib import md5 as hashlib_md5_new # pylint: disable=unused-import
+else: # pragma: no cover
+    from md5 import new as hashlib_md5_new # pylint: disable=import-error,unused-import
 
-    class cgi(object):
-        __slots__ = ()
-        escape = _html.escape
-        parse_header = _cgi.parse_header
-        parse_multipart = _cgi.parse_multipart
-else:
-    import cgi as _cgi
-    cgi = _cgi
+# html
+if _PY3:
+    from html import escape as html_escape # pylint: disable=unused-import
+else: # pragma: no cover
+    from cgi import escape as html_escape
 
-# md5
-if PY3:  # pragma: no cover
-    import hashlib as _hashlib
-    md5_new = _hashlib.md5
-else:
-    import md5 as _md5
-    md5_new = _md5.new
-
-# urllib, urllib2, urlparse
-if PY3:  # pragma: no cover
-    import urllib.parse as _urllib_parse
-    import urllib.request as _urllib_request
-
-    class urllib(object):
-        __slots__ = ()
-        quote = _urllib_parse.quote
-
-    class urllib2(object):
-        __slots__ = ()
-        Request = _urllib_request.Request
-        urlopen = _urllib_request.urlopen
-else:
-    import urllib as _urllib
-    import urllib2 as _urllib2
-    urllib = _urllib
-    urllib2 = _urllib2
+# urllib
+if _PY3:
+    from urllib.parse import quote as urllib_parse_quote # pylint: disable=unused-import
+    from urllib.request import Request as urllib_request_Request, urlopen as urllib_request_urlopen # pylint: disable=unused-import
+else: # pragma: no cover
+    from urllib import quote as urllib_parse_quote # pylint: disable=no-name-in-module
+    from urllib2 import Request as urllib_request_Request, urlopen as urllib_request_urlopen # pylint: disable=import-error

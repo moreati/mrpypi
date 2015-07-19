@@ -17,6 +17,7 @@ def pipDefaultIndexes():
     return (pip.cmdoptions.index_url.kwargs['default'],)
 
 
+# pylint: disable=no-member,protected-access,unexpected-keyword-arg
 def pipPackageVersions(index, package):
     finder = pip.index.PackageFinder([], [index], use_wheel=False,
                                      allow_external=[package], allow_unverified=[package])
