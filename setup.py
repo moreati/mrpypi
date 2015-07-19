@@ -8,7 +8,7 @@ tests_require = []
 
 setup(
     name = 'mrpypi',
-    version = '0.1.6',
+    version = '0.2.0',
     author = 'Craig Hobbs',
     author_email = 'craigahobbs@gmail.com',
     description = 'Simple, reliable local pypy cache.',
@@ -25,8 +25,9 @@ setup(
     ],
     packages = ['mrpypi'],
     install_requires = [
-        'chisel >= 0.8.22',
+        'chisel >= 0.8.25',
         'pymongo >= 2.6',
+        'pip >= 7.1',
     ],
     test_suite='mrpypi.tests',
     tests_require = tests_require,

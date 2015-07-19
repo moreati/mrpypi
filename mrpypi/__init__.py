@@ -1,9 +1,9 @@
 #
-# Copyright (C) 2014 Craig Hobbs
+# Copyright (C) 2014-2015 Craig Hobbs
 #
 
-from . import mrpypi as _mrpypi
-from . import mongoIndex as _mongoIndex
+from .mrpypi \
+    import MrPyPi
 
-MrPyPi = _mrpypi.MrPyPi
-MongoIndex = _mongoIndex.MongoIndex
+from .mongoIndex \
+    import MongoIndex

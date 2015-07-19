@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2014 Craig Hobbs
+# Copyright (C) 2014-2015 Craig Hobbs
 #
 
 from collections import namedtuple
