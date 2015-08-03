@@ -43,7 +43,7 @@ action pypi_index
 def pypi_index(ctx, req):
 
     # Get the package index
-    packageIndex = ctx.index.getPackageIndex(ctx, req['package'], req.get('forceUpdate', False))
+    packageIndex = ctx.app.index.getPackageIndex(ctx, req['package'], req.get('forceUpdate', False))
     if packageIndex is None:
         return ctx.responseText('404 Not Found', 'Not Found')
 
@@ -92,7 +92,7 @@ action pypi_download
 def pypi_download(ctx, req):
 
     # Get the package stream generator
-    packageStream = ctx.index.getPackageStream(ctx, req['package'], req['version'], req['filename'])
+    packageStream = ctx.app.index.getPackageStream(ctx, req['package'], req['version'], req['filename'])
     if packageStream is None:
         return ctx.responseText('404 Not Found', 'Not Found')
 
@@ -112,10 +112,10 @@ _uploadFiletypeToExt = {
 
 @chisel.request
 def pypi_upload(environ, dummy_start_response):
-    ctx = environ[chisel.Application.ENVIRON_APP]
+    ctx = environ[chisel.Application.ENVIRON_CTX]
 
     # Decode the multipart post
-    ctype, pdict = cgi.parse_header(ctx.environ.get('CONTENT_TYPE', ''))
+    ctype, pdict = cgi.parse_header(environ.get('CONTENT_TYPE', ''))
 
     # Ensure boundary is bytes for Python3
     boundary = pdict.get('boundary')
@@ -124,7 +124,7 @@ def pypi_upload(environ, dummy_start_response):
 
     if ctype != 'multipart/form-data':
         return ctx.responseText('400 Bad Request', '')
-    parts = cgi.parse_multipart(ctx.environ['wsgi.input'], pdict)
+    parts = cgi.parse_multipart(environ['wsgi.input'], pdict)
 
     def getPart(key, strip=True):
         values = parts.get(key)
@@ -151,7 +151,7 @@ def pypi_upload(environ, dummy_start_response):
 
         # Add the package to the index
         filename = package + '-' + version + _uploadFiletypeToExt[filetype]
-        result = ctx.index.addPackage(ctx, package, version, filename, content)
+        result = ctx.app.index.addPackage(ctx, package, version, filename, content)
         return ctx.responseText('200 OK' if result else '400 File Exists', '')
 
     # Unknown action
@@ -175,7 +175,7 @@ class MrPyPi(chisel.Application):
         self.index = index
 
         # Add application requests
-        self.addDocRequest()
+        self.addRequest(chisel.DocAction())
         self.addRequest(pypi_index)
         self.addRequest(pypi_download)
         self.addRequest(pypi_upload)
