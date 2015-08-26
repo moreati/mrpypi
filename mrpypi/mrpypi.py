@@ -33,7 +33,7 @@ from .compat import html_escape, urllib_parse_quote
 # Pypi package index page
 #
 
-@chisel.action(urls=['/pypi_index/{package}', '/pypi_index/{package}/'], wsgiResponse=True,
+@chisel.action(urls=['/pypi_index/{package}', '/pypi_index/{package}/'], wsgi_response=True,
                spec='''\
 action pypi_index
     input
@@ -45,7 +45,7 @@ def pypi_index(ctx, req):
     # Get the package index
     packageIndex = ctx.app.index.getPackageIndex(ctx, req['package'], req.get('forceUpdate', False))
     if packageIndex is None:
-        return ctx.responseText('404 Not Found', 'Not Found')
+        return ctx.response_text('404 Not Found', 'Not Found')
 
     # Build the link HTML
     linkHtmls = [
@@ -74,14 +74,14 @@ def pypi_index(ctx, req):
 '''.format(package=html_escape(req['package']),
            linkHtmls='\n'.join(linkHtmls))
 
-    return ctx.responseText('200 OK', response, contentType='text/html')
+    return ctx.response_text('200 OK', response, content_type='text/html')
 
 
 #
 # Pypi package download
 #
 
-@chisel.action(urls=['/pypi_download/{package}/{version}/{filename}'], wsgiResponse=True,
+@chisel.action(urls=['/pypi_download/{package}/{version}/{filename}'], wsgi_response=True,
                spec='''\
 action pypi_download
     input
@@ -94,7 +94,7 @@ def pypi_download(ctx, req):
     # Get the package stream generator
     packageStream = ctx.app.index.getPackageStream(ctx, req['package'], req['version'], req['filename'])
     if packageStream is None:
-        return ctx.responseText('404 Not Found', 'Not Found')
+        return ctx.response_text('404 Not Found', 'Not Found')
 
     # Stream the package
     ctx.start_response('200 OK', [('Content-Type', 'application/octet-stream')])
@@ -123,7 +123,7 @@ def pypi_upload(environ, dummy_start_response):
         pdict['boundary'] = boundary.encode('ascii')
 
     if ctype != 'multipart/form-data':
-        return ctx.responseText('400 Bad Request', '')
+        return ctx.response_text('400 Bad Request', '')
     parts = cgi.parse_multipart(environ['wsgi.input'], pdict)
 
     def getPart(key, strip=True):
@@ -147,15 +147,15 @@ def pypi_upload(environ, dummy_start_response):
         version = getPart('version')
         content = getPart('content', strip=False)
         if filetype not in _uploadFiletypeToExt or package is None or version is None or content is None:
-            return ctx.responseText('400 Bad Request', '')
+            return ctx.response_text('400 Bad Request', '')
 
         # Add the package to the index
         filename = package + '-' + version + _uploadFiletypeToExt[filetype]
         result = ctx.app.index.addPackage(ctx, package, version, filename, content)
-        return ctx.responseText('200 OK' if result else '400 File Exists', '')
+        return ctx.response_text('200 OK' if result else '400 File Exists', '')
 
     # Unknown action
-    return ctx.responseText('400 Bad Request', '')
+    return ctx.response_text('400 Bad Request', '')
 
 
 #
@@ -169,13 +169,13 @@ class MrPyPi(chisel.Application):
 
         # Override application defaults
         chisel.Application.__init__(self)
-        self.logLevel = logging.INFO
+        self.log_level = logging.INFO
 
         # Set the index
         self.index = index
 
         # Add application requests
-        self.addRequest(chisel.DocAction())
-        self.addRequest(pypi_index)
-        self.addRequest(pypi_download)
-        self.addRequest(pypi_upload)
+        self.add_request(chisel.DocAction())
+        self.add_request(pypi_index)
+        self.add_request(pypi_download)
+        self.add_request(pypi_upload)

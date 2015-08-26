@@ -178,12 +178,12 @@ package3
 '''
 
         app = MrPyPi(TestIndex())
-        status, headers, content = app.request('POST', '/pypi_upload', environ=dict(upload_environ), wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=dict(upload_environ), wsgi_input=upload_content)
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
 
-        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 File Exists')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
@@ -240,12 +240,12 @@ package1
 '''
 
         app = MrPyPi(TestIndex())
-        status, headers, content = app.request('POST', '/pypi_upload', environ=dict(upload_environ), wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=dict(upload_environ), wsgi_input=upload_content)
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
 
-        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 File Exists')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
@@ -258,7 +258,7 @@ package1
         upload_content = b''
 
         app = MrPyPi(TestIndex())
-        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
@@ -294,7 +294,7 @@ package3
 '''
 
         app = MrPyPi(TestIndex())
-        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
@@ -334,7 +334,7 @@ package3
 '''
 
         app = MrPyPi(TestIndex())
-        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
@@ -370,7 +370,7 @@ package3
 '''
 
         app = MrPyPi(TestIndex())
-        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
@@ -406,7 +406,7 @@ package3
 '''
 
         app = MrPyPi(TestIndex())
-        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
@@ -442,7 +442,7 @@ package3
 '''
 
         app = MrPyPi(TestIndex())
-        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgiInput=upload_content)
+        status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
