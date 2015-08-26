@@ -26,7 +26,7 @@ tests_require = []
 
 setup(
     name = 'mrpypi',
-    version = '0.2.1',
+    version = '0.2.2',
     author = 'Craig Hobbs',
     author_email = 'craigahobbs@gmail.com',
     description = 'Simple, reliable local pypy cache.',
