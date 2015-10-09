@@ -43,12 +43,12 @@ action pypi_index
 def pypi_index(ctx, req):
 
     # Get the package index
-    packageIndex = ctx.app.index.getPackageIndex(ctx, req['package'], req.get('forceUpdate', False))
-    if packageIndex is None:
+    package_index = ctx.app.index.get_package_index(ctx, req['package'], req.get('forceUpdate', False))
+    if package_index is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 
     # Build the link HTML
-    linkHtmls = [
+    link_htmls = [
         '<a href={linkUrlHref} rel="internal">{filenameText}</a><br/>'.format(
             linkUrlHref=saxutils.quoteattr('../../pypi_download/{package}/{version}/{filename}{hash}'.format(
                 package=urllib_parse_quote(pe.name),
@@ -57,7 +57,7 @@ def pypi_index(ctx, req):
                 hash=(('#' + urllib_parse_quote(pe.hash_name) + '=' + urllib_parse_quote(pe.hash))
                       if pe.hash is not None else ''))),
             filenameText=html_escape(pe.filename))
-        for pe in packageIndex]
+        for pe in package_index]
 
     # Build the index response
     response = '''\
@@ -68,11 +68,11 @@ def pypi_index(ctx, req):
 </head>
 <body>
 <h1>Links for {package}</h1>
-{linkHtmls}
+{link_htmls}
 </body>
 </html>
 '''.format(package=html_escape(req['package']),
-           linkHtmls='\n'.join(linkHtmls))
+           link_htmls='\n'.join(link_htmls))
 
     return ctx.response_text('200 OK', response, content_type='text/html')
 
@@ -92,20 +92,20 @@ action pypi_download
 def pypi_download(ctx, req):
 
     # Get the package stream generator
-    packageStream = ctx.app.index.getPackageStream(ctx, req['package'], req['version'], req['filename'])
-    if packageStream is None:
+    package_stream = ctx.app.index.get_package_stream(ctx, req['package'], req['version'], req['filename'])
+    if package_stream is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 
     # Stream the package
     ctx.start_response('200 OK', [('Content-Type', 'application/octet-stream')])
-    return packageStream()
+    return package_stream()
 
 
 #
 # Pypi package upload
 #
 
-_uploadFiletypeToExt = {
+UPLOAD_FILETYPE_TO_EXT = {
     'sdist': '.tar.gz'
 }
 
@@ -126,7 +126,7 @@ def pypi_upload(environ, dummy_start_response):
         return ctx.response_text('400 Bad Request', '')
     parts = cgi.parse_multipart(environ['wsgi.input'], pdict)
 
-    def getPart(key, strip=True):
+    def get_part(key, strip=True):
         values = parts.get(key)
         if values is None or not isinstance(values, list) or len(values) != 1:
             return None
@@ -138,20 +138,20 @@ def pypi_upload(environ, dummy_start_response):
         return value
 
     # Handle the action
-    action = getPart(':action')
+    action = get_part(':action')
     if action == 'file_upload':
 
         # Get file upload arguments
-        filetype = getPart('filetype')
-        package = getPart('name')
-        version = getPart('version')
-        content = getPart('content', strip=False)
-        if filetype not in _uploadFiletypeToExt or package is None or version is None or content is None:
+        filetype = get_part('filetype')
+        package = get_part('name')
+        version = get_part('version')
+        content = get_part('content', strip=False)
+        if filetype not in UPLOAD_FILETYPE_TO_EXT or package is None or version is None or content is None:
             return ctx.response_text('400 Bad Request', '')
 
         # Add the package to the index
-        filename = package + '-' + version + _uploadFiletypeToExt[filetype]
-        result = ctx.app.index.addPackage(ctx, package, version, filename, content)
+        filename = package + '-' + version + UPLOAD_FILETYPE_TO_EXT[filetype]
+        result = ctx.app.index.add_package(ctx, package, version, filename, content)
         return ctx.response_text('200 OK' if result else '400 File Exists', '')
 
     # Unknown action

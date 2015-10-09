@@ -38,30 +38,30 @@ class TestIndex(object):
                           TestIndexEntry('package2', '1.0.0', 'package2-1.0.0.tar.gz', None, None),
                           TestIndexEntry('package2', '1.0.1', 'package2-1.0.1.tar.gz', None, None)]
 
-    def getPackageIndex(self, dummy_ctx, packageName, dummy_forceUpdate=False):
-        return [x for x in self._packages if x.name == packageName] or None
+    def get_package_index(self, dummy_ctx, package_name, dummy_force_update=False):
+        return [x for x in self._packages if x.name == package_name] or None
 
-    def getPackageStream(self, ctx, packageName, version, filename):
-        index = self.getPackageIndex(ctx, packageName)
+    def get_package_stream(self, ctx, package_name, version, filename):
+        index = self.get_package_index(ctx, package_name)
         if index is None:
             return None
-        indexEntry = next((x for x in index if x.version == version), None)
-        if indexEntry is None:
+        index_entry = next((x for x in index if x.version == version), None)
+        if index_entry is None:
             return None
-        if indexEntry.filename != filename:
+        if index_entry.filename != filename:
             return None
 
         def stream():
-            yield (packageName + '-' + version).encode('utf-8')
+            yield (package_name + '-' + version).encode('utf-8')
         return stream
 
-    def addPackage(self, ctx, packageName, version, filename, content):
-        index = self.getPackageIndex(ctx, packageName)
+    def add_package(self, ctx, package_name, version, filename, content):
+        index = self.get_package_index(ctx, package_name)
         if index:
-            indexEntry = next((x for x in index if x.version == version), None)
-            if indexEntry:
+            index_entry = next((x for x in index if x.version == version), None)
+            if index_entry:
                 return False
-        self._packages.append(TestIndexEntry(packageName, version, filename, 'md5', hashlib_md5_new(content).hexdigest()))
+        self._packages.append(TestIndexEntry(package_name, version, filename, 'md5', hashlib_md5_new(content).hexdigest()))
         return True
 
 
@@ -87,7 +87,7 @@ class TestMrpypi(unittest.TestCase):
 </html>
 ''')
 
-    def test_mrpypi_pypi_index_unverified(self):
+    def test_index_unverified(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_index/package2')
@@ -107,7 +107,7 @@ class TestMrpypi(unittest.TestCase):
 </html>
 ''')
 
-    def test_mrpypi_pypi_index_notFound(self):
+    def test_index_not_found(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_index/packageUnknown')
@@ -115,7 +115,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'Not Found')
 
-    def test_mrpypi_pypi_download(self):
+    def test_download(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.1/package1-1.0.1.tar.gz')
@@ -123,7 +123,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertTrue(('Content-Type', 'application/octet-stream') in headers)
         self.assertEqual(content, b'package1-1.0.1')
 
-    def test_mrpypi_pypi_download_packageNotFound(self):
+    def test_download_package_not_found(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_download/packageUnknown/1.0.1/packageUnknown-1.0.1.tar.gz')
@@ -131,7 +131,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'Not Found')
 
-    def test_mrpypi_pypi_download_versionNotFound(self):
+    def test_download_version_not_found(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.2/package1-1.0.2.tar.gz')
@@ -139,7 +139,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'Not Found')
 
-    def test_mrpypi_pypi_download_filenameMismatch(self):
+    def test_download_filename_mismatch(self):
 
         app = MrPyPi(TestIndex())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.1/package2-1.0.2.tar.gz')
@@ -147,7 +147,7 @@ class TestMrpypi(unittest.TestCase):
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'Not Found')
 
-    def test_mrpypi_pypi_upload(self):
+    def test_upload(self):
 
         upload_environ = {
             'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
@@ -209,7 +209,7 @@ package3
         self.assertTrue(('Content-Type', 'application/octet-stream') in headers)
         self.assertEqual(content, b'package3-1.0.0')
 
-    def test_mrpypi_pypi_upload_existing_index(self):
+    def test_upload_existing_index(self):
 
         upload_environ = {
             'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
@@ -250,7 +250,7 @@ package1
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
 
-    def test_mrpypi_pypi_upload_invalid_contentType(self):
+    def test_upload_bad_content_type(self):
 
         upload_environ = {
             'CONTENT_TYPE': 'text/plain',
@@ -263,7 +263,7 @@ package1
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
 
-    def test_mrpypi_pypi_upload_invalid_action(self):
+    def test_upload_bad_action(self):
 
         upload_environ = {
             'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
@@ -299,7 +299,7 @@ package3
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
 
-    def test_mrpypi_pypi_upload_multiple_action(self):
+    def test_upload_multiple_action(self):
 
         upload_environ = {
             'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
@@ -339,7 +339,7 @@ package3
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
 
-    def test_mrpypi_pypi_upload_invalid_filetype(self):
+    def test_upload_bad_filetype(self):
 
         upload_environ = {
             'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
@@ -375,7 +375,7 @@ package3
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
 
-    def test_mrpypi_pypi_upload_invalid_version(self):
+    def test_upload_bad_version(self):
 
         upload_environ = {
             'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',
@@ -411,7 +411,7 @@ package3
         self.assertTrue(('Content-Type', 'text/plain') in headers)
         self.assertEqual(content, b'')
 
-    def test_mrpypi_pypi_upload_invalid_content(self):
+    def test_upload_bad_content(self):
 
         upload_environ = {
             'CONTENT_TYPE': 'multipart/form-data; boundary=--------------GHSKFJDLGDS7543FJKLFHRE75642756743254',

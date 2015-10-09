@@ -23,5 +23,5 @@
 from .mrpypi \
     import MrPyPi
 
-from .mongoIndex \
+from .mongo_index \
     import MongoIndex
