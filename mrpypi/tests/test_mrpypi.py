@@ -44,18 +44,18 @@ class TestMrpypi(unittest.TestCase):
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/html') in headers)
         expected_content = b'''\
-<html>
-<head>
-<title>Links for package1</title>
-<meta name="api-version" value="2" />
-</head>
-<body>
-<h1>Links for package1</h1>
-<a href="../../pypi_download/package1/1.0.0/package1-1.0.0.tar.gz#md5=5f832e6e6b2107ba3b0463fc171623d7" rel="internal">package1-1.0.0.tar.gz</a><br/>
-<a href="../../pypi_download/package1/1.0.1/package1-1.0.1.tar.gz#md5=7ff99f5a955518cece354b9a0e94007d" rel="internal">package1-1.0.1.tar.gz</a><br/>
-</body>
-</html>
-'''
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Links for package1</title>
+    <meta name="api-version" value="2">
+  </head>
+  <body>
+    <h1>Links for package1</h1>
+    <a href="../../pypi_download/package1/1.0.0/package1-1.0.0.tar.gz#md5=5f832e6e6b2107ba3b0463fc171623d7" rel="internal">package1-1.0.0.tar.gz</a><br>
+    <a href="../../pypi_download/package1/1.0.1/package1-1.0.1.tar.gz#md5=7ff99f5a955518cece354b9a0e94007d" rel="internal">package1-1.0.1.tar.gz</a><br>
+  </body>
+</html>'''
         self.assertEqual(content, expected_content)
 
     def test_index_unverified(self):
@@ -65,18 +65,18 @@ class TestMrpypi(unittest.TestCase):
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/html') in headers)
         expected_content = b'''\
-<html>
-<head>
-<title>Links for package2</title>
-<meta name="api-version" value="2" />
-</head>
-<body>
-<h1>Links for package2</h1>
-<a href="../../pypi_download/package2/1.0.0/package2-1.0.0.tar.gz#md5=e5bb63cbaf57f917dec872455807ea9a" rel="internal">package2-1.0.0.tar.gz</a><br/>
-<a href="../../pypi_download/package2/1.0.1/package2-1.0.1.tar.gz#md5=5196a17e0ebf66da9ac16f09a836d60f" rel="internal">package2-1.0.1.tar.gz</a><br/>
-</body>
-</html>
-'''
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Links for package2</title>
+    <meta name="api-version" value="2">
+  </head>
+  <body>
+    <h1>Links for package2</h1>
+    <a href="../../pypi_download/package2/1.0.0/package2-1.0.0.tar.gz#md5=e5bb63cbaf57f917dec872455807ea9a" rel="internal">package2-1.0.0.tar.gz</a><br>
+    <a href="../../pypi_download/package2/1.0.1/package2-1.0.1.tar.gz#md5=5196a17e0ebf66da9ac16f09a836d60f" rel="internal">package2-1.0.1.tar.gz</a><br>
+  </body>
+</html>'''
         self.assertEqual(content, expected_content)
 
     def test_index_not_found(self):
@@ -164,17 +164,17 @@ package3
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/html') in headers)
         expected_content = b'''\
-<html>
-<head>
-<title>Links for package3</title>
-<meta name="api-version" value="2" />
-</head>
-<body>
-<h1>Links for package3</h1>
-<a href="../../pypi_download/package3/1.0.0/package3-1.0.0.tar.gz#md5=df9f61bece81c091f7044368fcf62501" rel="internal">package3-1.0.0.tar.gz</a><br/>
-</body>
-</html>
-'''
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Links for package3</title>
+    <meta name="api-version" value="2">
+  </head>
+  <body>
+    <h1>Links for package3</h1>
+    <a href="../../pypi_download/package3/1.0.0/package3-1.0.0.tar.gz#md5=df9f61bece81c091f7044368fcf62501" rel="internal">package3-1.0.0.tar.gz</a><br>
+  </body>
+</html>'''
         self.assertEqual(content, expected_content)
 
         status, headers, content = app.request('GET', '/pypi_download/package3/1.0.0/package3-1.0.0.tar.gz')

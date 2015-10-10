@@ -29,7 +29,7 @@ try:
 except ImportError:
     pass
 
-from .compat import hashlib_md5_new, urllib_request_Request, urllib_request_urlopen
+from .compat import hashlib_md5_new, urllib_request_urlopen
 from .index_util import pip_default_indexes, pip_package_versions
 
 
@@ -168,12 +168,7 @@ class MongoIndex(object):
                     # Download the file
                     assert package_entry.url, 'Attempt to add package index entry without URL!!'
                     ctx.log.info('Downloading package (%s, %s) from "%s"', package_name, version, package_entry.url)
-                    req = urllib_request_Request(url=package_entry.url)
-                    reqf = urllib_request_urlopen(req)
-                    try:
-                        content = reqf.read()
-                    finally:
-                        reqf.close()
+                    content = urllib_request_urlopen(package_entry.url).read()
 
                     # Add the file
                     ctx.log.info('Adding package (%s, %s) (%d bytes)', package_name, version, len(content))

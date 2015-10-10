@@ -51,7 +51,7 @@ class MemoryIndex(object):
             return
         ctx.log.info('Updating index for package "{0}"'.format(package_name))
         pip_packages = pip_package_versions(self._index_url, package_name)
-        if pip_packages is None:
+        if not pip_packages:
             return
         package_index = self._index.setdefault(package_name, {})
         for pip_package in pip_packages:

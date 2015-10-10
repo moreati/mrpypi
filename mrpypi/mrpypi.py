@@ -22,11 +22,8 @@
 
 import cgi
 import logging
-import xml.sax.saxutils as saxutils
 
 import chisel
-
-from .compat import html_escape, urllib_parse_quote
 
 
 class MrPyPi(chisel.Application):
@@ -65,34 +62,23 @@ def pypi_index(ctx, req):
         return ctx.response_text('404 Not Found', 'Not Found')
 
     # Build the link HTML
-    link_htmls = [
-        '<a href={linkUrlHref} rel="internal">{filenameText}</a><br/>'.format(
-            linkUrlHref=saxutils.quoteattr('../../pypi_download/{package}/{version}/{filename}{hash}'.format(
-                package=urllib_parse_quote(pe.name),
-                version=urllib_parse_quote(pe.version),
-                filename=urllib_parse_quote(pe.filename),
-                hash=(('#' + urllib_parse_quote(pe.hash_name) + '=' + urllib_parse_quote(pe.hash))
-                      if pe.hash is not None else ''))),
-            filenameText=html_escape(pe.filename))
-        for pe in sorted(package_index, key=lambda index_entry: index_entry.version)]
+    root = chisel.Element('html', lang='en')
+    head = root.add_child('head')
+    head.add_child('title', inline=True).add_child('Links for {0}'.format(package_name), text=True)
+    head.add_child('meta', closed=False, _name='api-version', value='2')
+    body = root.add_child('body')
+    body.add_child('h1', inline=True).add_child('Links for {0}'.format(package_name), text=True)
+    for package_entry in sorted(package_index, key=lambda package_entry: package_entry.version):
+        package_hash = ''
+        if package_entry.hash is not None:
+            package_hash = '#' + package_entry.hash_name + '=' + package_entry.hash
+        package_url = '../../pypi_download/{0}/{1}/{2}{3}'.format(
+            package_entry.name, package_entry.version, package_entry.filename, package_hash)
+        body.add_child('a', inline=True, href=package_url, rel='internal') \
+            .add_child(package_entry.filename, text=True)
+        body.add_child('br', closed=False, indent=False)
 
-    # Build the index response
-    response = '''\
-<!doctype html>
-<html>
-<head>
-<title>Links for {package}</title>
-<meta name="api-version" value="2" />
-</head>
-<body>
-<h1>Links for {package}</h1>
-{link_htmls}
-</body>
-</html>
-'''.format(package=html_escape(package_name),
-           link_htmls='\n'.join(link_htmls))
-
-    return ctx.response_text('200 OK', response, content_type='text/html')
+    return ctx.response_text('200 OK', root.serialize(), content_type='text/html')
 
 
 @chisel.action(urls=['/pypi_download/{package}/{version}/{filename}'], wsgi_response=True,
