@@ -59,7 +59,8 @@ action pypi_index
 def pypi_index(ctx, req):
 
     # Get the package index
-    package_index = ctx.app.index.get_package_index(ctx, req['package'], req.get('forceUpdate', False))
+    package_name = req.get('package')
+    package_index = ctx.app.index.get_package_index(ctx, package_name, req.get('forceUpdate', False))
     if package_index is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 
@@ -77,6 +78,7 @@ def pypi_index(ctx, req):
 
     # Build the index response
     response = '''\
+<!doctype html>
 <html>
 <head>
 <title>Links for {package}</title>
@@ -87,7 +89,7 @@ def pypi_index(ctx, req):
 {link_htmls}
 </body>
 </html>
-'''.format(package=html_escape(req['package']),
+'''.format(package=html_escape(package_name),
            link_htmls='\n'.join(link_htmls))
 
     return ctx.response_text('200 OK', response, content_type='text/html')
