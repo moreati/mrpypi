@@ -45,8 +45,8 @@ class MrPyPi(chisel.Application):
         self.add_request(pypi_upload)
 
 
-@chisel.action(urls=['/pypi_index/{package}', '/pypi_index/{package}/'], wsgi_response=True,
-               spec='''\
+@chisel.action(urls=('/pypi_index/{package}', '/pypi_index/{package}/'),
+               wsgi_response=True, spec='''\
 # Pypi package index page
 action pypi_index
     input
@@ -81,8 +81,8 @@ def pypi_index(ctx, req):
     return ctx.response_text('200 OK', root.serialize(), content_type='text/html')
 
 
-@chisel.action(urls=['/pypi_download/{package}/{version}/{filename}'], wsgi_response=True,
-               spec='''\
+@chisel.action(urls=('/pypi_download/{package}/{version}/{filename}',),
+               wsgi_response=True, spec='''\
 # Pypi package download
 action pypi_download
     input
@@ -107,7 +107,8 @@ UPLOAD_FILETYPE_TO_EXT = {
 }
 
 
-@chisel.request(doc=('Pypi package upload'))
+@chisel.request(urls=('/pypi_upload',),
+                doc=('Pypi package upload',))
 def pypi_upload(environ, dummy_start_response):
     ctx = environ[chisel.Application.ENVIRON_CTX]
 
