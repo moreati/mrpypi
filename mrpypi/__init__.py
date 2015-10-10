@@ -23,5 +23,8 @@
 from .mrpypi \
     import MrPyPi
 
+from .memory_index \
+    import MemoryIndex
+
 from .mongo_index \
     import MongoIndex

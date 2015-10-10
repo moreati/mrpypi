@@ -23,14 +23,25 @@
 from collections import namedtuple
 from datetime import datetime
 
-import gridfs  # pymongo
-import pymongo
+try:
+    import gridfs
+    import pymongo
+except ImportError:
+    pass
 
 from .compat import hashlib_md5_new, urllib_request_Request, urllib_request_urlopen
 from .index_util import pip_default_indexes, pip_package_versions
 
 
-MongoIndexEntry = namedtuple('MongoIndexEntry', ('name', 'version', 'filename', 'hash', 'hash_name', 'url', 'datetime'))
+MongoIndexEntry = namedtuple('MongoIndexEntry', (
+    'name',
+    'version',
+    'filename',
+    'hash',
+    'hash_name',
+    'url',
+    'datetime'
+))
 
 
 # Prefer tarball's over files of other extensions...

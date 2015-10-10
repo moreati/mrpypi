@@ -29,12 +29,28 @@ import chisel
 from .compat import html_escape, urllib_parse_quote
 
 
-#
-# Pypi package index page
-#
+class MrPyPi(chisel.Application):
+    __slots__ = ('index')
+
+    def __init__(self, index):
+
+        # Override application defaults
+        chisel.Application.__init__(self)
+        self.log_level = logging.INFO
+
+        # Set the index
+        self.index = index
+
+        # Add application requests
+        self.add_request(chisel.DocAction())
+        self.add_request(pypi_index)
+        self.add_request(pypi_download)
+        self.add_request(pypi_upload)
+
 
 @chisel.action(urls=['/pypi_index/{package}', '/pypi_index/{package}/'], wsgi_response=True,
                spec='''\
+# Pypi package index page
 action pypi_index
     input
         string package
@@ -57,7 +73,7 @@ def pypi_index(ctx, req):
                 hash=(('#' + urllib_parse_quote(pe.hash_name) + '=' + urllib_parse_quote(pe.hash))
                       if pe.hash is not None else ''))),
             filenameText=html_escape(pe.filename))
-        for pe in package_index]
+        for pe in sorted(package_index, key=lambda index_entry: index_entry.version)]
 
     # Build the index response
     response = '''\
@@ -77,12 +93,9 @@ def pypi_index(ctx, req):
     return ctx.response_text('200 OK', response, content_type='text/html')
 
 
-#
-# Pypi package download
-#
-
 @chisel.action(urls=['/pypi_download/{package}/{version}/{filename}'], wsgi_response=True,
                spec='''\
+# Pypi package download
 action pypi_download
     input
         string package
@@ -101,16 +114,12 @@ def pypi_download(ctx, req):
     return package_stream()
 
 
-#
-# Pypi package upload
-#
-
 UPLOAD_FILETYPE_TO_EXT = {
     'sdist': '.tar.gz'
 }
 
 
-@chisel.request
+@chisel.request(doc=('Pypi package upload'))
 def pypi_upload(environ, dummy_start_response):
     ctx = environ[chisel.Application.ENVIRON_CTX]
 
@@ -156,26 +165,3 @@ def pypi_upload(environ, dummy_start_response):
 
     # Unknown action
     return ctx.response_text('400 Bad Request', '')
-
-
-#
-# Pypi application
-#
-
-class MrPyPi(chisel.Application):
-    __slots__ = ('index')
-
-    def __init__(self, index):
-
-        # Override application defaults
-        chisel.Application.__init__(self)
-        self.log_level = logging.INFO
-
-        # Set the index
-        self.index = index
-
-        # Add application requests
-        self.add_request(chisel.DocAction())
-        self.add_request(pypi_index)
-        self.add_request(pypi_download)
-        self.add_request(pypi_upload)
