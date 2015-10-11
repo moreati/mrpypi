@@ -37,7 +37,7 @@ class MemoryIndex(object):
     def _update_index(self, ctx, package_name):
         if self._index_url is None:
             return
-        ctx.log.info('Updating index for package "{0}"'.format(package_name))
+        ctx.log.info('Updating index for package "%s"', package_name)
         pip_packages = pip_package_versions(self._index_url, package_name)
         if not pip_packages:
             return
@@ -65,11 +65,11 @@ class MemoryIndex(object):
     def add_package(self, ctx, package_name, version, filename, content):
         index_entry = self._index.setdefault(package_name, {}).get(version)
         if index_entry is not None:
-            ctx.log.info('Attempt to re-add package "{0}", version "{1}"'.format(
-                index_entry.name, index_entry.version))
+            ctx.log.info('Attempt to re-add package "%s", version "%s"',
+                         index_entry.name, index_entry.version)
             return False
-        ctx.log.info('Adding package "{0}", version "{1}" with filename "{2}" of {3} bytes'.format(
-            package_name, version, filename, len(content)))
+        ctx.log.info('Adding package "%s", version "%s" with filename "%s" of %d bytes',
+                     package_name, version, filename, len(content))
         index_entry = IndexEntry(name=package_name,
                                  version=version,
                                  filename=filename,
@@ -91,8 +91,8 @@ class MemoryIndex(object):
         if index_entry is None or index_entry.filename != filename:
             return None
         if index_entry not in self._index_content:
-            ctx.log.info('Downloading package "{0}", version "{1}" from "{2}"'.format(
-                index_entry.name, index_entry.version, index_entry.url))
+            ctx.log.info('Downloading package "%s", version "%s" from "%s"',
+                         index_entry.name, index_entry.version, index_entry.url)
             self._index_content[index_entry] = urllib_request_urlopen(index_entry.url).read()
         def package_stream():
             yield self._index_content[index_entry]
