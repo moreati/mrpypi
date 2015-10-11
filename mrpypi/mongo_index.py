@@ -29,7 +29,7 @@ except ImportError:
     pass
 
 from .compat import hashlib_md5_new, itervalues, urllib_request_urlopen
-from .index_util import IndexEntry, PIP_DEFAULT_INDEX, pip_package_versions
+from .index_util import IndexEntry, DEFAULT_PIP_INDEX, pip_package_versions
 
 
 DEFAULT_MONGO_URI = 'mongodb://localhost'
@@ -42,7 +42,7 @@ class MongoIndex(object):
     FILES_COLLECTION_NAME = 'fs'
     STREAM_CHUNK_SIZE = 4096
 
-    def __init__(self, index_url=PIP_DEFAULT_INDEX, mongo_uri=DEFAULT_MONGO_URI, mongo_database='mrpypi'):
+    def __init__(self, index_url=DEFAULT_PIP_INDEX, mongo_uri=DEFAULT_MONGO_URI, mongo_database='mrpypi'):
         self.index_url = index_url
         self.mongo_uri = mongo_uri
         self.mongo_database = mongo_database

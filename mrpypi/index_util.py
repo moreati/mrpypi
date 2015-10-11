@@ -27,9 +27,9 @@ from pip.download import PipSession
 from pip.index import FormatControl, PackageFinder
 
 
-PIP_DEFAULT_INDEX = index_url.keywords['default']
+DEFAULT_PIP_INDEX = index_url.keywords['default']
 
-PIP_PACKAGE_EXT_ORDER = ('.tar.gz', '.zip', '.tar.bz2')
+PACKAGE_EXT_ORDER = ('.tar.gz', '.zip', '.tar.bz2')
 
 
 IndexEntry = namedtuple('IndexEntry', (
@@ -51,9 +51,9 @@ PipPackage = namedtuple('PipPackageVersion', (
 
 def _pip_package_sort_key(pip_package):
     try:
-        return (pip_package.version, PIP_PACKAGE_EXT_ORDER.index(pip_package.link.ext))
+        return (pip_package.version, PACKAGE_EXT_ORDER.index(pip_package.link.ext))
     except ValueError:
-        return (pip_package.version, len(PIP_PACKAGE_EXT_ORDER))
+        return (pip_package.version, len(PACKAGE_EXT_ORDER))
 
 
 def pip_package_versions(index, package):

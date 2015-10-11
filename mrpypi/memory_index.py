@@ -23,13 +23,13 @@
 from datetime import datetime
 
 from .compat import hashlib_md5_new, itervalues, urllib_request_urlopen
-from .index_util import IndexEntry, PIP_DEFAULT_INDEX, pip_package_versions
+from .index_util import IndexEntry, DEFAULT_PIP_INDEX, pip_package_versions
 
 
 class MemoryIndex(object):
     __slots__ = ('_index', '_index_url', '_index_content')
 
-    def __init__(self, index_url=PIP_DEFAULT_INDEX):
+    def __init__(self, index_url=DEFAULT_PIP_INDEX):
         self._index = {}
         self._index_url = index_url
         self._index_content = {}
