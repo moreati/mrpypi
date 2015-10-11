@@ -24,6 +24,7 @@ from argparse import ArgumentParser
 from wsgiref.simple_server import make_server
 
 from . import MrPyPi, MemoryIndex, MongoIndex
+from .index_util import PIP_DEFAULT_INDEX
 from .mongo_index import DEFAULT_MONGO_URI
 
 
@@ -32,6 +33,10 @@ def main():
     # Command line options
     parser = ArgumentParser(prog='mrpypi')
     parser.add_argument('-p', dest='port', type=int, default=8000, help='Server port number (default is 8000)')
+    parser.add_argument('--index', dest='index_url', default=PIP_DEFAULT_INDEX, metavar='URL',
+                        help='Specify the upstream pypi index URL (default is "{0}")'.format(PIP_DEFAULT_INDEX))
+    parser.add_argument('--no-index', dest='index_url', action='store_const', const=None,
+                        help='Don\'t use an upstream pypi index')
     parser.add_argument('--mongo', dest='mongo', action='store_true',
                         help='Use mongo database index')
     parser.add_argument('--mongo-uri', dest='mongo_uri', type=str, default=DEFAULT_MONGO_URI, metavar='URI',
@@ -39,10 +44,13 @@ def main():
     args = parser.parse_args()
 
     # Create the index
+    print('Upstream pypi index URL: {0}'.format(args.index_url))
     if args.mongo:
-        index = MongoIndex(mongo_uri=args.mongo_uri)
+        print('Mongo index with URI: {0}'.format(args.mongo_uri))
+        index = MongoIndex(index_url=args.index_url, mongo_uri=args.mongo_uri)
     else:
-        index = MemoryIndex()
+        print('Using memory index')
+        index = MemoryIndex(index_url=args.index_url)
 
     # Start the application
     print('Serving on port {0}...'.format(args.port))

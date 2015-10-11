@@ -42,10 +42,10 @@ class MongoIndex(object):
     FILES_COLLECTION_NAME = 'fs'
     STREAM_CHUNK_SIZE = 4096
 
-    def __init__(self, mongo_uri=None, mongo_database=None, index_url=None):
-        self.mongo_uri = mongo_uri if mongo_uri is not None else DEFAULT_MONGO_URI
-        self.mongo_database = mongo_database if mongo_database is not None else 'mrpypi'
-        self.index_url = index_url if index_url is not None else PIP_DEFAULT_INDEX
+    def __init__(self, index_url=PIP_DEFAULT_INDEX, mongo_uri=DEFAULT_MONGO_URI, mongo_database='mrpypi'):
+        self.index_url = index_url
+        self.mongo_uri = mongo_uri
+        self.mongo_database = mongo_database
 
     @staticmethod
     def _local_filename(package_name, version):
@@ -106,7 +106,9 @@ class MongoIndex(object):
                 if package_index_update:
                     mongo_package_index.insert(x._asdict() for x in itervalues(package_index_update))
 
-        return itervalues(package_index) or None
+        if not package_index:
+            return None
+        return itervalues(package_index)
 
     def get_package_stream(self, ctx, package_name, version, filename):
 
