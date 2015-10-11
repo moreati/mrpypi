@@ -46,7 +46,7 @@ setup(
     ],
     packages = ['mrpypi'],
     install_requires = [
-        'chisel >= 0.9.3',
+        'chisel >= 0.9.5',
         'pip >= 7.1',
     ],
     test_suite='mrpypi.tests',

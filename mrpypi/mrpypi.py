@@ -51,18 +51,19 @@ def _normalize_filename(filename):
     return filename.strip()
 
 
-@chisel.action(urls=('/pypi_index/{package}', '/pypi_index/{package}/'),
-               wsgi_response=True, spec='''\
-# Pypi package index page
+@chisel.action(urls=('/pypi_index/{package_name}', '/pypi_index/{package_name}/'),
+               wsgi_response=True,
+               spec='''\
+# pypi package index page
 action pypi_index
     input
-        string package
+        string package_name
         optional bool force_update
 ''')
 def pypi_index(ctx, req):
 
     # Get the package index
-    package_name = req.get('package')
+    package_name = req.get('package_name')
     package_index = ctx.app.index.get_package_index(ctx, _normalize_package_name(package_name),
                                                     force_update=req.get('force_update', False))
     if package_index is None:
@@ -88,19 +89,20 @@ def pypi_index(ctx, req):
     return ctx.response_text('200 OK', root.serialize(), content_type='text/html')
 
 
-@chisel.action(urls=('/pypi_download/{package}/{version}/{filename}',),
-               wsgi_response=True, spec='''\
-# Pypi package download
+@chisel.action(urls=('/pypi_download/{package_name}/{version}/{filename}',),
+               wsgi_response=True,
+               spec='''\
+# pypi package download
 action pypi_download
     input
-        string package
+        string package_name
         string version
         string filename
 ''')
 def pypi_download(ctx, req):
 
     # Get the package stream generator
-    package_stream = ctx.app.index.get_package_stream(ctx, _normalize_package_name(req['package']),
+    package_stream = ctx.app.index.get_package_stream(ctx, _normalize_package_name(req['package_name']),
                                                       _normalize_version(req['version']),
                                                       _normalize_filename(req['filename']))
     if package_stream is None:
@@ -117,7 +119,7 @@ UPLOAD_FILETYPE_TO_EXT = {
 
 
 @chisel.request(urls=('/pypi_upload',),
-                doc=('Pypi package upload',))
+                doc=('pypi package upload',))
 def pypi_upload(environ, dummy_start_response):
     ctx = environ[chisel.Application.ENVIRON_CTX]
 
