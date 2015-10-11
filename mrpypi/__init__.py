@@ -20,7 +20,7 @@
 # SOFTWARE.
 #
 
-__version__ = '0.2.5'
+__version__ = '0.2.6'
 
 # Wrap imports in a try-except to work-around setup.py import issue
 try:
