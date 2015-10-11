@@ -3,6 +3,7 @@
 *.so
 *.egg-info
 .build/
+.eggs
 .env/
 .cover/
 .coverage

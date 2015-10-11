@@ -20,22 +20,10 @@
 # SOFTWARE.
 #
 
-from collections import namedtuple
 from datetime import datetime
 
 from .compat import hashlib_md5_new, urllib_request_urlopen
-from .index_util import PIP_DEFAULT_INDEX, pip_package_versions
-
-
-MemoryIndexEntry = namedtuple('MemoryIndexEntry', (
-    'name',
-    'version',
-    'filename',
-    'hash',
-    'hash_name',
-    'url',
-    'datetime'
-))
+from .index_util import IndexEntry, PIP_DEFAULT_INDEX, pip_package_versions
 
 
 class MemoryIndex(object):
@@ -56,13 +44,13 @@ class MemoryIndex(object):
         package_index = self._index.setdefault(package_name, {})
         for pip_package in pip_packages:
             if pip_package.version not in package_index:
-                index_entry = MemoryIndexEntry(name=package_name,
-                                               version=pip_package.version,
-                                               filename=pip_package.link.filename,
-                                               hash=pip_package.link.hash,
-                                               hash_name=pip_package.link.hash_name,
-                                               url=pip_package.link.url,
-                                               datetime=None)
+                index_entry = IndexEntry(name=package_name,
+                                         version=pip_package.version,
+                                         filename=pip_package.link.filename,
+                                         hash=pip_package.link.hash,
+                                         hash_name=pip_package.link.hash_name,
+                                         url=pip_package.link.url,
+                                         datetime=None)
                 package_index[pip_package.version] = index_entry
 
     def get_package_index(self, ctx, package_name, force_update=False):
@@ -82,13 +70,13 @@ class MemoryIndex(object):
             return False
         ctx.log.info('Adding package "{0}", version "{1}" with filename "{2}" of {3} bytes'.format(
             package_name, version, filename, len(content)))
-        index_entry = MemoryIndexEntry(name=package_name,
-                                       version=version,
-                                       filename=filename,
-                                       hash=hashlib_md5_new(content).hexdigest(),
-                                       hash_name='md5',
-                                       url=None,
-                                       datetime=datetime.now())
+        index_entry = IndexEntry(name=package_name,
+                                 version=version,
+                                 filename=filename,
+                                 hash=hashlib_md5_new(content).hexdigest(),
+                                 hash_name='md5',
+                                 url=None,
+                                 datetime=datetime.now())
         self._index[package_name][version] = index_entry
         self._index_content[index_entry] = content
         return True

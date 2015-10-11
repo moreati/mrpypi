@@ -32,6 +32,17 @@ PIP_DEFAULT_INDEX = index_url.keywords['default']
 PIP_PACKAGE_EXT_ORDER = ('.tar.gz', '.zip', '.tar.bz2')
 
 
+IndexEntry = namedtuple('IndexEntry', (
+    'name',
+    'version',
+    'filename',
+    'hash',
+    'hash_name',
+    'url',
+    'datetime'
+))
+
+
 PipPackage = namedtuple('PipPackageVersion', (
     'version',
     'link'

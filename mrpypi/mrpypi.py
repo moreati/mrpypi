@@ -41,6 +41,16 @@ class MrPyPi(chisel.Application):
         self.add_request(pypi_upload)
 
 
+def _normalize_package_name(package_name):
+    return package_name.strip().lower()
+
+def _normalize_version(version):
+    return version.strip()
+
+def _normalize_filename(filename):
+    return filename.strip()
+
+
 @chisel.action(urls=('/pypi_index/{package}', '/pypi_index/{package}/'),
                wsgi_response=True, spec='''\
 # Pypi package index page
@@ -53,7 +63,8 @@ def pypi_index(ctx, req):
 
     # Get the package index
     package_name = req.get('package')
-    package_index = ctx.app.index.get_package_index(ctx, package_name, req.get('forceUpdate', False))
+    package_index = ctx.app.index.get_package_index(ctx, _normalize_package_name(package_name),
+                                                    force_update=req.get('forceUpdate', False))
     if package_index is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 
@@ -89,7 +100,9 @@ action pypi_download
 def pypi_download(ctx, req):
 
     # Get the package stream generator
-    package_stream = ctx.app.index.get_package_stream(ctx, req['package'], req['version'], req['filename'])
+    package_stream = ctx.app.index.get_package_stream(ctx, _normalize_package_name(req['package']),
+                                                      _normalize_version(req['version']),
+                                                      _normalize_filename(req['filename']))
     if package_stream is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 
@@ -145,7 +158,10 @@ def pypi_upload(environ, dummy_start_response):
 
         # Add the package to the index
         filename = package + '-' + version + UPLOAD_FILETYPE_TO_EXT[filetype]
-        result = ctx.app.index.add_package(ctx, package, version, filename, content)
+        result = ctx.app.index.add_package(ctx, _normalize_package_name(package),
+                                           _normalize_version(version),
+                                           _normalize_filename(filename),
+                                           content)
         return ctx.response_text('200 OK' if result else '400 File Exists', '')
 
     # Unknown action

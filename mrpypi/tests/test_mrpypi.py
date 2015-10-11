@@ -29,17 +29,19 @@ from mrpypi import MrPyPi, MemoryIndex
 
 class TestMrpypi(unittest.TestCase):
 
-    def setUp(self):
+    @staticmethod
+    def _test_index():
         ctx = Context(Application(), {}, None, {})
-        self.index = MemoryIndex(index_url=None)
-        self.index.add_package(ctx, 'package1', '1.0.0', 'package1-1.0.0.tar.gz', b'package1-1.0.0')
-        self.index.add_package(ctx, 'package1', '1.0.1', 'package1-1.0.1.tar.gz', b'package1-1.0.1')
-        self.index.add_package(ctx, 'package2', '1.0.0', 'package2-1.0.0.tar.gz', b'package2-1.0.0')
-        self.index.add_package(ctx, 'package2', '1.0.1', 'package2-1.0.1.tar.gz', b'package2-1.0.1')
+        index = MemoryIndex(index_url=None)
+        index.add_package(ctx, 'package1', '1.0.0', 'package1-1.0.0.tar.gz', b'package1-1.0.0')
+        index.add_package(ctx, 'package1', '1.0.1', 'package1-1.0.1.tar.gz', b'package1-1.0.1')
+        index.add_package(ctx, 'package2', '1.0.0', 'package2-1.0.0.tar.gz', b'package2-1.0.0')
+        index.add_package(ctx, 'package2', '1.0.1', 'package2-1.0.1.tar.gz', b'package2-1.0.1')
+        return index
 
     def test_mrpypi_pypi_index(self):
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('GET', '/pypi_index/package1')
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/html') in headers)
@@ -60,7 +62,7 @@ class TestMrpypi(unittest.TestCase):
 
     def test_index_unverified(self):
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('GET', '/pypi_index/package2')
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/html') in headers)
@@ -81,7 +83,7 @@ class TestMrpypi(unittest.TestCase):
 
     def test_index_not_found(self):
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('GET', '/pypi_index/packageUnknown')
         self.assertEqual(status, '404 Not Found')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -89,7 +91,7 @@ class TestMrpypi(unittest.TestCase):
 
     def test_download(self):
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.1/package1-1.0.1.tar.gz')
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'application/octet-stream') in headers)
@@ -97,7 +99,7 @@ class TestMrpypi(unittest.TestCase):
 
     def test_download_package_not_found(self):
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('GET', '/pypi_download/packageUnknown/1.0.1/packageUnknown-1.0.1.tar.gz')
         self.assertEqual(status, '404 Not Found')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -105,7 +107,7 @@ class TestMrpypi(unittest.TestCase):
 
     def test_download_version_not_found(self):
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.2/package1-1.0.2.tar.gz')
         self.assertEqual(status, '404 Not Found')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -113,7 +115,7 @@ class TestMrpypi(unittest.TestCase):
 
     def test_download_filename_mismatch(self):
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('GET', '/pypi_download/package1/1.0.1/package2-1.0.2.tar.gz')
         self.assertEqual(status, '404 Not Found')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -149,7 +151,7 @@ package3
 
 '''
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('POST', '/pypi_upload', environ=dict(upload_environ), wsgi_input=upload_content)
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -212,7 +214,7 @@ package1
 
 '''
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('POST', '/pypi_upload', environ=dict(upload_environ), wsgi_input=upload_content)
         self.assertEqual(status, '200 OK')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -230,7 +232,7 @@ package1
         }
         upload_content = b''
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -266,7 +268,7 @@ package3
 
 '''
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -306,7 +308,7 @@ package3
 
 '''
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -342,7 +344,7 @@ package3
 
 '''
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -378,7 +380,7 @@ package3
 
 '''
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)
@@ -414,7 +416,7 @@ package3
 
 '''
 
-        app = MrPyPi(self.index)
+        app = MrPyPi(self._test_index())
         status, headers, content = app.request('POST', '/pypi_upload', environ=upload_environ, wsgi_input=upload_content)
         self.assertEqual(status, '400 Bad Request')
         self.assertTrue(('Content-Type', 'text/plain') in headers)

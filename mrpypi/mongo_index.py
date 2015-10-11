@@ -20,7 +20,6 @@
 # SOFTWARE.
 #
 
-from collections import namedtuple
 from datetime import datetime
 
 try:
@@ -30,21 +29,10 @@ except ImportError:
     pass
 
 from .compat import hashlib_md5_new, urllib_request_urlopen
-from .index_util import PIP_DEFAULT_INDEX, pip_package_versions
+from .index_util import IndexEntry, PIP_DEFAULT_INDEX, pip_package_versions
 
 
 DEFAULT_MONGO_URI = 'mongodb://localhost'
-
-
-MongoIndexEntry = namedtuple('MongoIndexEntry', (
-    'name',
-    'version',
-    'filename',
-    'hash',
-    'hash_name',
-    'url',
-    'datetime'
-))
 
 
 class MongoIndex(object):
@@ -60,18 +48,6 @@ class MongoIndex(object):
         self.index_url = index_url if index_url is not None else PIP_DEFAULT_INDEX
 
     @staticmethod
-    def _normalize_name(package_name):
-        return package_name.strip().lower()
-
-    @staticmethod
-    def _normalize_version(version):
-        return version.strip()
-
-    @staticmethod
-    def _normalize_filename(filename):
-        return filename.strip()
-
-    @staticmethod
     def _local_filename(package_name, version):
         return package_name + '/' + version
 
@@ -84,20 +60,19 @@ class MongoIndex(object):
         return gridfs.GridFS(mongo_client[self.mongo_database], collection=self.FILES_COLLECTION_NAME)
 
     def get_package_index(self, ctx, package_name, force_update=False):
-        package_name = self._normalize_name(package_name)
 
         # Read mongo index
         with pymongo.MongoClient(self.mongo_uri) as mongo_client:
             mongo_package_index = self._mongo_collection_package_index(mongo_client)
 
             # Get the package index entries
-            package_index = [MongoIndexEntry(name=x['name'],
-                                             version=x['version'],
-                                             filename=x['filename'],
-                                             hash=x['hash'],
-                                             hash_name=x['hash_name'],
-                                             url=x['url'],
-                                             datetime=x['datetime'])
+            package_index = [IndexEntry(name=x['name'],
+                                        version=x['version'],
+                                        filename=x['filename'],
+                                        hash=x['hash'],
+                                        hash_name=x['hash_name'],
+                                        url=x['url'],
+                                        datetime=x['datetime'])
                              for x in mongo_package_index.find({'name': package_name})]
             package_versions = set(x.version for x in package_index)
 
@@ -106,7 +81,6 @@ class MongoIndex(object):
                 ctx.log.info('Updating index for "%s"', package_name)
 
                 # For each cached pypi index
-                now = datetime.now()
                 update_package_index = []
                 if self.index_url is not None:
                     try:
@@ -115,18 +89,17 @@ class MongoIndex(object):
                         if pip_packages is not None:
                             for pip_package in pip_packages:
                                 # New package version?
-                                pip_package_version = self._normalize_version(pip_package.version)
-                                if pip_package_version not in package_versions:
-                                    package_index_entry = MongoIndexEntry(name=package_name,
-                                                                          version=pip_package_version,
-                                                                          filename=pip_package.link.filename,
-                                                                          hash=pip_package.link.hash,
-                                                                          hash_name=pip_package.link.hash_name,
-                                                                          url=pip_package.link.url,
-                                                                          datetime=now)
+                                if pip_package.version not in package_versions:
+                                    package_index_entry = IndexEntry(name=package_name,
+                                                                     version=pip_package.version,
+                                                                     filename=pip_package.link.filename,
+                                                                     hash=pip_package.link.hash,
+                                                                     hash_name=pip_package.link.hash_name,
+                                                                     url=pip_package.link.url,
+                                                                     datetime=None)
                                     package_index.append(package_index_entry)
                                     update_package_index.append(package_index_entry)
-                                    package_versions.add(pip_package_version)
+                                    package_versions.add(pip_package.version)
                     except Exception as exc: # pylint: disable=broad-except
                         ctx.log.warning('Package versions pip exception for "%s": %s', package_name, exc)
 
@@ -137,9 +110,6 @@ class MongoIndex(object):
         return package_index or None
 
     def get_package_stream(self, ctx, package_name, version, filename):
-        package_name = self._normalize_name(package_name)
-        version = self._normalize_version(version)
-        filename = self._normalize_filename(filename)
 
         # Find the package index entry
         package_entry = next((pe for pe in self.get_package_index(ctx, package_name) if pe.version == version), None)
@@ -178,9 +148,6 @@ class MongoIndex(object):
         return package_stream
 
     def add_package(self, ctx, package_name, version, filename, content):
-        package_name = self._normalize_name(package_name)
-        version = self._normalize_version(version)
-        filename = self._normalize_filename(filename)
 
         # Index exist?
         package_index = self.get_package_index(ctx, package_name) or ()
@@ -202,13 +169,13 @@ class MongoIndex(object):
 
             # Add the index
             ctx.log.info('Adding package index (%s, %s)', package_name, version)
-            mongo_package_index.insert(MongoIndexEntry(name=package_name,
-                                                       version=version,
-                                                       filename=filename,
-                                                       hash=hashlib_md5_new(content).hexdigest(),
-                                                       hash_name='md5',
-                                                       url=None,
-                                                       datetime=datetime.now())._asdict())
+            mongo_package_index.insert(IndexEntry(name=package_name,
+                                                  version=version,
+                                                  filename=filename,
+                                                  hash=hashlib_md5_new(content).hexdigest(),
+                                                  hash_name='md5',
+                                                  url=None,
+                                                  datetime=datetime.now())._asdict())
 
             # Add the file
             ctx.log.info('Adding package file (%s, %s) (%d bytes)', package_name, version, len(content))
