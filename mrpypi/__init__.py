@@ -20,8 +20,14 @@
 # SOFTWARE.
 #
 
-from .mrpypi \
-    import MrPyPi
+__version__ = '0.2.5'
+
+# Wrap mrpypi imports in a try-except to work-around setup.py import issue
+try:
+    from .mrpypi \
+        import MrPyPi
+except ImportError:
+    pass
 
 from .memory_index \
     import MemoryIndex

@@ -22,11 +22,13 @@
 
 from setuptools import setup
 
+import mrpypi
+
 tests_require = []
 
 setup(
     name = 'mrpypi',
-    version = '0.2.4',
+    version = mrpypi.__version__,
     author = 'Craig Hobbs',
     author_email = 'craigahobbs@gmail.com',
     description = 'Simple, reliable local pypy cache.',
