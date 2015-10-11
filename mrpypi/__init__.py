@@ -22,15 +22,15 @@
 
 __version__ = '0.2.5'
 
-# Wrap mrpypi imports in a try-except to work-around setup.py import issue
+# Wrap imports in a try-except to work-around setup.py import issue
 try:
     from .mrpypi \
         import MrPyPi
+
+    from .memory_index \
+        import MemoryIndex
+
+    from .mongo_index \
+        import MongoIndex
 except ImportError:
     pass
-
-from .memory_index \
-    import MemoryIndex
-
-from .mongo_index \
-    import MongoIndex
