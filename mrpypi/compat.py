@@ -22,16 +22,24 @@
 
 import sys
 
-_PY3 = (sys.version_info >= (3, 0))
+PY3 = (sys.version_info >= (3, 0))
+
+# dict
+if PY3:
+    def itervalues(dict_):
+        return iter(dict_.values())
+else: # pragma: no cover
+    def itervalues(dict_):
+        return dict_.itervalues()
 
 # hashlib
-if _PY3:
+if PY3:
     from hashlib import md5 as hashlib_md5_new # pylint: disable=unused-import
 else: # pragma: no cover
     from md5 import new as hashlib_md5_new # pylint: disable=import-error,unused-import
 
 # urllib
-if _PY3:
+if PY3:
     from urllib.request import urlopen as urllib_request_urlopen # pylint: disable=unused-import
 else: # pragma: no cover
     from urllib2 import urlopen as urllib_request_urlopen # pylint: disable=import-error

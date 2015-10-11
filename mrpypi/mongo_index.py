@@ -28,7 +28,7 @@ try:
 except ImportError:
     pass
 
-from .compat import hashlib_md5_new, urllib_request_urlopen
+from .compat import hashlib_md5_new, itervalues, urllib_request_urlopen
 from .index_util import IndexEntry, PIP_DEFAULT_INDEX, pip_package_versions
 
 
@@ -66,22 +66,22 @@ class MongoIndex(object):
             mongo_package_index = self._mongo_collection_package_index(mongo_client)
 
             # Get the package index entries
-            package_index = [IndexEntry(name=x['name'],
+            package_index = {x['version']:
+                             IndexEntry(name=x['name'],
                                         version=x['version'],
                                         filename=x['filename'],
                                         hash=x['hash'],
                                         hash_name=x['hash_name'],
                                         url=x['url'],
                                         datetime=x['datetime'])
-                             for x in mongo_package_index.find({'name': package_name})]
-            package_versions = set(x.version for x in package_index)
+                             for x in mongo_package_index.find({'name': package_name})}
 
             # Index out-of-date?
             if not package_index or force_update:
                 ctx.log.info('Updating index for "%s"', package_name)
 
                 # For each cached pypi index
-                update_package_index = []
+                package_index_update = {}
                 if self.index_url is not None:
                     try:
                         # Get the pip index
@@ -89,7 +89,7 @@ class MongoIndex(object):
                         if pip_packages is not None:
                             for pip_package in pip_packages:
                                 # New package version?
-                                if pip_package.version not in package_versions:
+                                if pip_package.version not in package_index:
                                     package_index_entry = IndexEntry(name=package_name,
                                                                      version=pip_package.version,
                                                                      filename=pip_package.link.filename,
@@ -97,17 +97,16 @@ class MongoIndex(object):
                                                                      hash_name=pip_package.link.hash_name,
                                                                      url=pip_package.link.url,
                                                                      datetime=None)
-                                    package_index.append(package_index_entry)
-                                    update_package_index.append(package_index_entry)
-                                    package_versions.add(pip_package.version)
+                                    package_index[pip_package.version] = package_index_entry
+                                    package_index_update[pip_package.version] = package_index_entry
                     except Exception as exc: # pylint: disable=broad-except
                         ctx.log.warning('Package versions pip exception for "%s": %s', package_name, exc)
 
                 # Insert any new package versions
-                if update_package_index:
-                    mongo_package_index.insert(x._asdict() for x in update_package_index)
+                if package_index_update:
+                    mongo_package_index.insert(x._asdict() for x in itervalues(package_index_update))
 
-        return package_index or None
+        return itervalues(package_index) or None
 
     def get_package_stream(self, ctx, package_name, version, filename):
 

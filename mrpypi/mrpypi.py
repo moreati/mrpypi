@@ -57,14 +57,14 @@ def _normalize_filename(filename):
 action pypi_index
     input
         string package
-        optional bool forceUpdate
+        optional bool force_update
 ''')
 def pypi_index(ctx, req):
 
     # Get the package index
     package_name = req.get('package')
     package_index = ctx.app.index.get_package_index(ctx, _normalize_package_name(package_name),
-                                                    force_update=req.get('forceUpdate', False))
+                                                    force_update=req.get('force_update', False))
     if package_index is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 

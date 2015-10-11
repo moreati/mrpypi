@@ -22,7 +22,7 @@
 
 from datetime import datetime
 
-from .compat import hashlib_md5_new, urllib_request_urlopen
+from .compat import hashlib_md5_new, itervalues, urllib_request_urlopen
 from .index_util import IndexEntry, PIP_DEFAULT_INDEX, pip_package_versions
 
 
@@ -60,7 +60,7 @@ class MemoryIndex(object):
             package_index = self._index.get(package_name)
         if package_index is None:
             return None
-        return package_index.values()
+        return itervalues(package_index)
 
     def add_package(self, ctx, package_name, version, filename, content):
         index_entry = self._index.setdefault(package_name, {}).get(version)
