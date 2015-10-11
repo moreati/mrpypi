@@ -30,7 +30,10 @@ except ImportError:
     pass
 
 from .compat import hashlib_md5_new, urllib_request_urlopen
-from .index_util import pip_default_indexes, pip_package_versions
+from .index_util import PIP_DEFAULT_INDEX, pip_package_versions
+
+
+DEFAULT_MONGO_URI = 'mongodb://localhost'
 
 
 MongoIndexEntry = namedtuple('MongoIndexEntry', (
@@ -44,28 +47,17 @@ MongoIndexEntry = namedtuple('MongoIndexEntry', (
 ))
 
 
-# Prefer tarball's over files of other extensions...
-PIP_PACKAGE_EXT_ORDER = ('.tar.gz', '.zip', '.tar.bz2')
-
-
-def _pip_package_sort_key(pip_package):
-    try:
-        return (pip_package.version, PIP_PACKAGE_EXT_ORDER.index(pip_package.link.ext))
-    except ValueError:
-        return (pip_package.version, len(PIP_PACKAGE_EXT_ORDER))
-
-
 class MongoIndex(object):
-    __slots__ = ('mongo_uri', 'mongo_database', 'index_urls')
+    __slots__ = ('mongo_uri', 'mongo_database', 'index_url')
 
     INDEX_COLLECTION_NAME = 'index'
     FILES_COLLECTION_NAME = 'fs'
     STREAM_CHUNK_SIZE = 4096
 
-    def __init__(self, mongo_uri=None, mongo_database=None, index_urls=None):
-        self.mongo_uri = mongo_uri if mongo_uri is not None else 'mongodb://localhost:27017'
+    def __init__(self, mongo_uri=None, mongo_database=None, index_url=None):
+        self.mongo_uri = mongo_uri if mongo_uri is not None else DEFAULT_MONGO_URI
         self.mongo_database = mongo_database if mongo_database is not None else 'mrpypi'
-        self.index_urls = index_urls if index_urls is not None else pip_default_indexes()
+        self.index_url = index_url if index_url is not None else PIP_DEFAULT_INDEX
 
     @staticmethod
     def _normalize_name(package_name):
@@ -116,12 +108,12 @@ class MongoIndex(object):
                 # For each cached pypi index
                 now = datetime.now()
                 update_package_index = []
-                for index_url in self.index_urls:
+                if self.index_url is not None:
                     try:
                         # Get the pip index
-                        pip_packages = pip_package_versions(index_url, package_name)
+                        pip_packages = pip_package_versions(self.index_url, package_name)
                         if pip_packages is not None:
-                            for pip_package in sorted(pip_packages, key=_pip_package_sort_key):
+                            for pip_package in pip_packages:
                                 # New package version?
                                 pip_package_version = self._normalize_version(pip_package.version)
                                 if pip_package_version not in package_versions:

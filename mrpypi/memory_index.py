@@ -24,7 +24,7 @@ from collections import namedtuple
 from datetime import datetime
 
 from .compat import hashlib_md5_new, urllib_request_urlopen
-from .index_util import pip_default_indexes, pip_package_versions
+from .index_util import PIP_DEFAULT_INDEX, pip_package_versions
 
 
 MemoryIndexEntry = namedtuple('MemoryIndexEntry', (
@@ -41,7 +41,7 @@ MemoryIndexEntry = namedtuple('MemoryIndexEntry', (
 class MemoryIndex(object):
     __slots__ = ('_index', '_index_url', '_index_content')
 
-    def __init__(self, index_url=pip_default_indexes()[0]):
+    def __init__(self, index_url=PIP_DEFAULT_INDEX):
         self._index = {}
         self._index_url = index_url
         self._index_content = {}

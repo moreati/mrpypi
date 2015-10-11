@@ -27,11 +27,22 @@ from pip.download import PipSession
 from pip.index import FormatControl, PackageFinder
 
 
-PipPackage = namedtuple('PipPackageVersion', ('version', 'link'))
+PIP_DEFAULT_INDEX = index_url.keywords['default']
+
+PIP_PACKAGE_EXT_ORDER = ('.tar.gz', '.zip', '.tar.bz2')
 
 
-def pip_default_indexes():
-    return (index_url.keywords['default'],)
+PipPackage = namedtuple('PipPackageVersion', (
+    'version',
+    'link'
+))
+
+
+def _pip_package_sort_key(pip_package):
+    try:
+        return (pip_package.version, PIP_PACKAGE_EXT_ORDER.index(pip_package.link.ext))
+    except ValueError:
+        return (pip_package.version, len(PIP_PACKAGE_EXT_ORDER))
 
 
 def pip_package_versions(index, package):
@@ -39,4 +50,5 @@ def pip_package_versions(index, package):
     session = PipSession()
     finder = PackageFinder([], [index], format_control=format_control, session=session,
                            allow_external=[package], allow_unverified=[package])
-    return [PipPackage(str(pv.version), pv.location) for pv in finder._find_all_versions(package)] # pylint: disable=protected-access
+    return sorted((PipPackage(str(pv.version), pv.location) for pv in finder._find_all_versions(package)), # pylint: disable=protected-access
+                  key=_pip_package_sort_key)

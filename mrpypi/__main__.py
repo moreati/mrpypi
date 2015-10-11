@@ -23,14 +23,31 @@
 from argparse import ArgumentParser
 from wsgiref.simple_server import make_server
 
-from mrpypi import MrPyPi, MemoryIndex
+from . import MrPyPi, MemoryIndex, MongoIndex
+from .mongo_index import DEFAULT_MONGO_URI
+
 
 def main():
+
+    # Command line options
     parser = ArgumentParser(prog='mrpypi')
     parser.add_argument('-p', dest='port', type=int, default=8000, help='Server port number (default is 8000)')
+    parser.add_argument('--mongo', dest='mongo', action='store_true',
+                        help='Use mongo database index')
+    parser.add_argument('--mongo-uri', dest='mongo_uri', type=str, default=DEFAULT_MONGO_URI, metavar='URI',
+                        help='Mongo database URI (default is "{0}")'.format(DEFAULT_MONGO_URI))
     args = parser.parse_args()
+
+    # Create the index
+    if args.mongo:
+        index = MongoIndex(mongo_uri=args.mongo_uri)
+    else:
+        index = MemoryIndex()
+
+    # Start the application
     print('Serving on port {0}...'.format(args.port))
-    make_server('', args.port, MrPyPi(MemoryIndex())).serve_forever()
+    make_server('', args.port, MrPyPi(index)).serve_forever()
+
 
 if __name__ == '__main__':
     main()
