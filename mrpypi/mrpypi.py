@@ -51,7 +51,8 @@ def _normalize_filename(filename):
     return filename.strip()
 
 
-@chisel.action(urls=('/pypi_index/{package_name}', '/pypi_index/{package_name}/'),
+@chisel.action(urls=[('GET', '/simple/{package_name}'),
+                     ('GET', '/simple/{package_name}/')],
                wsgi_response=True,
                spec='''\
 # pypi package index page
@@ -80,7 +81,7 @@ def pypi_index(ctx, req):
         package_hash = ''
         if package_entry.hash is not None:
             package_hash = '#' + package_entry.hash_name + '=' + package_entry.hash
-        package_url = '../../pypi_download/{0}/{1}/{2}{3}'.format(
+        package_url = '../../download/{0}/{1}/{2}{3}'.format(
             package_entry.name, package_entry.version, package_entry.filename, package_hash)
         body.add_child('a', inline=True, href=package_url, rel='internal') \
             .add_child(package_entry.filename, text=True)
@@ -89,36 +90,7 @@ def pypi_index(ctx, req):
     return ctx.response_text('200 OK', root.serialize(), content_type='text/html')
 
 
-@chisel.action(urls=('/pypi_download/{package_name}/{version}/{filename}',),
-               wsgi_response=True,
-               spec='''\
-# pypi package download
-action pypi_download
-    input
-        string package_name
-        string version
-        string filename
-''')
-def pypi_download(ctx, req):
-
-    # Get the package stream generator
-    package_stream = ctx.app.index.get_package_stream(ctx, _normalize_package_name(req['package_name']),
-                                                      _normalize_version(req['version']),
-                                                      _normalize_filename(req['filename']))
-    if package_stream is None:
-        return ctx.response_text('404 Not Found', 'Not Found')
-
-    # Stream the package
-    ctx.start_response('200 OK', [('Content-Type', 'application/octet-stream')])
-    return package_stream()
-
-
-UPLOAD_FILETYPE_TO_EXT = {
-    'sdist': '.tar.gz'
-}
-
-
-@chisel.request(urls=('/pypi_upload',),
+@chisel.request(urls=[('POST', '/simple'), ('POST', '/simple/')],
                 doc=('pypi package upload',))
 def pypi_upload(environ, dummy_start_response):
     ctx = environ[chisel.Application.ENVIRON_CTX]
@@ -168,3 +140,32 @@ def pypi_upload(environ, dummy_start_response):
 
     # Unknown action
     return ctx.response_text('400 Bad Request', '')
+
+
+@chisel.action(urls=[('GET', '/download/{package_name}/{version}/{filename}')],
+               wsgi_response=True,
+               spec='''\
+# pypi package download
+action pypi_download
+    input
+        string package_name
+        string version
+        string filename
+''')
+def pypi_download(ctx, req):
+
+    # Get the package stream generator
+    package_stream = ctx.app.index.get_package_stream(ctx, _normalize_package_name(req['package_name']),
+                                                      _normalize_version(req['version']),
+                                                      _normalize_filename(req['filename']))
+    if package_stream is None:
+        return ctx.response_text('404 Not Found', 'Not Found')
+
+    # Stream the package
+    ctx.start_response('200 OK', [('Content-Type', 'application/octet-stream')])
+    return package_stream()
+
+
+UPLOAD_FILETYPE_TO_EXT = {
+    'sdist': '.tar.gz'
+}
