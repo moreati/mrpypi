@@ -20,17 +20,11 @@
 # SOFTWARE.
 #
 
-__version__ = '0.2.6'
+from .mrpypi \
+    import MrPyPi
 
-# Wrap imports in a try-except to work-around setup.py import issue
-try:
-    from .mrpypi \
-        import MrPyPi
+from .memory_index \
+    import MemoryIndex
 
-    from .memory_index \
-        import MemoryIndex
-
-    from .mongo_index \
-        import MongoIndex
-except ImportError:
-    pass
+from .mongo_index \
+    import MongoIndex

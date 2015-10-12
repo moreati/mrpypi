@@ -90,7 +90,13 @@ def pypi_index(ctx, req):
     return ctx.response_text('200 OK', root.serialize(), content_type='text/html')
 
 
-@chisel.request(urls=[('POST', '/simple'), ('POST', '/simple/')],
+UPLOAD_FILETYPE_TO_EXT = {
+    'sdist': '.tar.gz'
+}
+
+
+@chisel.request(urls=[('POST', '/simple'),
+                      ('POST', '/simple/')],
                 doc=('pypi package upload',))
 def pypi_upload(environ, dummy_start_response):
     ctx = environ[chisel.Application.ENVIRON_CTX]
@@ -164,8 +170,3 @@ def pypi_download(ctx, req):
     # Stream the package
     ctx.start_response('200 OK', [('Content-Type', 'application/octet-stream')])
     return package_stream()
-
-
-UPLOAD_FILETYPE_TO_EXT = {
-    'sdist': '.tar.gz'
-}
