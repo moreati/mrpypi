@@ -35,12 +35,18 @@ class MemoryIndex(object):
         self._index_content = {}
 
     def _update_index(self, ctx, package_name):
+
+        # Upstream pypi index disabled?
         if self._index_url is None:
             return
+
+        # Load upstream pypi index
         ctx.log.info('Updating index for package "%s"', package_name)
         pip_packages = pip_package_versions(self._index_url, package_name)
         if not pip_packages:
             return
+
+        # Add missing upstream versions to the index
         package_index = self._index.setdefault(package_name, {})
         for pip_package in pip_packages:
             if pip_package.version not in package_index:
@@ -54,20 +60,30 @@ class MemoryIndex(object):
                 package_index[pip_package.version] = index_entry
 
     def get_package_index(self, ctx, package_name, force_update=False):
+
+        # Need to update from the upstream pypi index?
         package_index = self._index.get(package_name)
         if package_index is None or force_update:
             self._update_index(ctx, package_name)
             package_index = self._index.get(package_name)
+
+        # Return None to indicate package not found
         if package_index is None:
             return None
+
+        # Return iter of index entry objects
         return itervalues(package_index)
 
     def add_package(self, ctx, package_name, version, filename, content):
+
+        # Existing package version? If so, return False to indicate failure
         index_entry = self._index.setdefault(package_name, {}).get(version)
         if index_entry is not None:
             ctx.log.info('Attempt to re-add package "%s", version "%s"',
                          index_entry.name, index_entry.version)
             return False
+
+        # Add the new index entry and package content
         ctx.log.info('Adding package "%s", version "%s" with filename "%s" of %d bytes',
                      package_name, version, filename, len(content))
         index_entry = IndexEntry(name=package_name,
@@ -79,21 +95,31 @@ class MemoryIndex(object):
                                  datetime=datetime.now())
         self._index[package_name][version] = index_entry
         self._index_content[index_entry] = content
+
+        # Return True to indicate success
         return True
 
     def get_package_stream(self, ctx, package_name, version, filename):
+
+        # Get the index entry - update from the upstream pypi index, if necessary
         package_index = self._index.get(package_name)
         index_entry = package_index.get(version) if package_index is not None else None
         if index_entry is None:
             self._update_index(ctx, package_name)
             package_index = self._index.get(package_name)
             index_entry = package_index.get(version) if package_index is not None else None
+
+        # Return None to indicate package version not found
         if index_entry is None or index_entry.filename != filename:
             return None
+
+        # Download index entry content, if necessary
         if index_entry not in self._index_content:
             ctx.log.info('Downloading package "%s", version "%s" from "%s"',
                          index_entry.name, index_entry.version, index_entry.url)
             self._index_content[index_entry] = urllib_request_urlopen(index_entry.url).read()
+
+        # Return the package content stream
         def package_stream():
             yield self._index_content[index_entry]
         return package_stream

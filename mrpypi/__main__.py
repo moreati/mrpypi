@@ -32,15 +32,16 @@ def main():
 
     # Command line options
     parser = ArgumentParser(prog='mrpypi')
-    parser.add_argument('-p', dest='port', type=int, default=8000, help='Server port number (default is 8000)')
+    parser.add_argument('-p', dest='port', type=int, default=8000,
+                        help='server port number (default is 8000)')
     parser.add_argument('--index', dest='index_url', default=DEFAULT_PIP_INDEX, metavar='URL',
-                        help='Specify the upstream pypi index URL (default is "{0}")'.format(DEFAULT_PIP_INDEX))
+                        help='upstream pypi index URL (default is "{0}")'.format(DEFAULT_PIP_INDEX))
     parser.add_argument('--no-index', dest='index_url', action='store_const', const=None,
-                        help='Don\'t use an upstream pypi index')
+                        help='disable upstream pypi index')
     parser.add_argument('--mongo', dest='mongo', action='store_true',
-                        help='Use mongo database index')
+                        help='use MongoDB index')
     parser.add_argument('--mongo-uri', dest='mongo_uri', type=str, default=DEFAULT_MONGO_URI, metavar='URI',
-                        help='Mongo database URI (default is "{0}")'.format(DEFAULT_MONGO_URI))
+                        help='MongoDB URI (default is "{0}")'.format(DEFAULT_MONGO_URI))
     args = parser.parse_args()
 
     # Create the index
@@ -53,8 +54,9 @@ def main():
         index = MemoryIndex(index_url=args.index_url)
 
     # Start the application
+    application = MrPyPi(index)
     print('Serving on port {0}...'.format(args.port))
-    make_server('', args.port, MrPyPi(index)).serve_forever()
+    make_server('', args.port, application).serve_forever()
 
 
 if __name__ == '__main__':
