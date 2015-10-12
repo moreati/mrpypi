@@ -72,7 +72,7 @@ def pypi_index(ctx, req):
     if package_index is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 
-    # Build the link HTML
+    # Build the package index HTML
     root = chisel.Element('html', lang='en')
     head = root.add_child('head')
     head.add_child('title', inline=True).add_child('Links for {0}'.format(package_name), text=True)
