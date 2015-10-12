@@ -41,13 +41,13 @@ class MrPyPi(chisel.Application):
         self.add_request(pypi_upload)
 
 
-def _normalize_package_name(package_name):
+def normalize_package_name(package_name):
     return package_name.strip().lower()
 
-def _normalize_version(version):
+def normalize_version(version):
     return version.strip()
 
-def _normalize_filename(filename):
+def normalize_filename(filename):
     return filename.strip()
 
 
@@ -65,8 +65,10 @@ def pypi_index(ctx, req):
 
     # Get the package index
     package_name = req.get('package_name')
-    package_index = ctx.app.index.get_package_index(ctx, _normalize_package_name(package_name),
-                                                    force_update=req.get('force_update', False))
+    package_index = ctx.app.index.get_package_index(
+        ctx,
+        normalize_package_name(package_name),
+        force_update=req.get('force_update', False))
     if package_index is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 
@@ -78,9 +80,7 @@ def pypi_index(ctx, req):
     body = root.add_child('body')
     body.add_child('h1', inline=True).add_child('Links for {0}'.format(package_name), text=True)
     for package_entry in sorted(package_index, key=lambda package_entry: package_entry.version):
-        package_hash = ''
-        if package_entry.hash is not None:
-            package_hash = '#' + package_entry.hash_name + '=' + package_entry.hash
+        package_hash = '' if package_entry.hash is None else ('#' + package_entry.hash_name + '=' + package_entry.hash)
         package_url = '../../download/{0}/{1}/{2}{3}'.format(
             package_entry.name, package_entry.version, package_entry.filename, package_hash)
         body.add_child('a', inline=True, href=package_url, rel='internal') \
@@ -88,11 +88,6 @@ def pypi_index(ctx, req):
         body.add_child('br', closed=False, indent=False)
 
     return ctx.response_text('200 OK', root.serialize(), content_type='text/html')
-
-
-UPLOAD_FILETYPE_TO_EXT = {
-    'sdist': '.tar.gz'
-}
 
 
 @chisel.request(urls=[('POST', '/simple'),
@@ -133,15 +128,18 @@ def pypi_upload(environ, dummy_start_response):
         package = get_part('name')
         version = get_part('version')
         content = get_part('content', strip=False)
-        if filetype not in UPLOAD_FILETYPE_TO_EXT or package is None or version is None or content is None:
+        filetype_ext = {'sdist': '.tar.gz'}.get(filetype)
+        if filetype_ext is None or package is None or version is None or content is None:
             return ctx.response_text('400 Bad Request', '')
 
         # Add the package to the index
-        filename = package + '-' + version + UPLOAD_FILETYPE_TO_EXT[filetype]
-        result = ctx.app.index.add_package(ctx, _normalize_package_name(package),
-                                           _normalize_version(version),
-                                           _normalize_filename(filename),
-                                           content)
+        filename = package + '-' + version + filetype_ext
+        result = ctx.app.index.add_package(
+            ctx,
+            normalize_package_name(package),
+            normalize_version(version),
+            normalize_filename(filename),
+            content)
         return ctx.response_text('200 OK' if result else '400 File Exists', '')
 
     # Unknown action
@@ -161,9 +159,11 @@ action pypi_download
 def pypi_download(ctx, req):
 
     # Get the package stream generator
-    package_stream = ctx.app.index.get_package_stream(ctx, _normalize_package_name(req['package_name']),
-                                                      _normalize_version(req['version']),
-                                                      _normalize_filename(req['filename']))
+    package_stream = ctx.app.index.get_package_stream(
+        ctx,
+        normalize_package_name(req['package_name']),
+        normalize_version(req['version']),
+        normalize_filename(req['filename']))
     if package_stream is None:
         return ctx.response_text('404 Not Found', 'Not Found')
 

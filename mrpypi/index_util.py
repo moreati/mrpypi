@@ -29,8 +29,6 @@ from pip.index import FormatControl, PackageFinder
 
 DEFAULT_PIP_INDEX = index_url.keywords['default']
 
-PACKAGE_EXT_ORDER = ('.tar.gz', '.zip', '.tar.bz2')
-
 
 IndexEntry = namedtuple('IndexEntry', (
     'name',
@@ -49,17 +47,10 @@ PipPackage = namedtuple('PipPackageVersion', (
 ))
 
 
-def _pip_package_sort_key(pip_package):
-    try:
-        return (pip_package.version, PACKAGE_EXT_ORDER.index(pip_package.link.ext))
-    except ValueError:
-        return (pip_package.version, len(PACKAGE_EXT_ORDER))
-
-
 def pip_package_versions(index, package):
     format_control = FormatControl(no_binary=(':all:'), only_binary=())
     session = PipSession()
     finder = PackageFinder([], [index], format_control=format_control, session=session,
                            allow_external=[package], allow_unverified=[package])
     return sorted((PipPackage(str(pv.version), pv.location) for pv in finder._find_all_versions(package)), # pylint: disable=protected-access
-                  key=_pip_package_sort_key)
+                  key=lambda pp: (pp.version, {'.tar.gz': 1, '.zip': 2, '.tar.bz2': 3}.get(pp.link.ext, 10000)))
