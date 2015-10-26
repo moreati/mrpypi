@@ -10,6 +10,4 @@ help:
 define RUN_COMMANDS_FN
 	$(2) -m mrpypi $(ARGS)
 endef
-$(foreach X, $(PYTHON_URLS), $(eval $(call ENV_RULE, $(X), run, -e ., RUN_COMMANDS_FN)))
-.PHONY: run
-run: run_$(PYTHON_DEFAULT)
+$(eval $(call ENV_RULE, run, -e ., RUN_COMMANDS_FN))
